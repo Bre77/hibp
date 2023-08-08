@@ -11,7 +11,7 @@ const StyledContainer = styled.div`
     display: block;
     font-size: ${variables.fontSizeLarge};
     line-height: 200%;
-    margin: 0 ${variables.spacing} ${variables.spacing};
+    margin: ${variables.spacing};
 `;
 
 // Theme based background colour
@@ -23,32 +23,30 @@ const GlobalStyle = createGlobalStyle`
 
 // Setup the query client with defaults
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      cacheTime: Infinity,
-      staleTime: Infinity,
-      retry: (failureCount, error) => error >= 500 && failureCount < 3,
-      refetchOnMount: false,
+    defaultOptions: {
+        queries: {
+            cacheTime: Infinity,
+            staleTime: Infinity,
+            retry: (failureCount, error) => error >= 500 && failureCount < 3,
+            refetchOnMount: false,
+        },
     },
-  },
 });
 
-export const Page = (Child) =>
-  Promise.all([getUserTheme()])
-    .then(([theme]) =>
-      layout(
-        <QueryClientProvider client={queryClient}>
-          <GlobalStyle />
-          <StyledContainer>
-            {Child}
-          </StyledContainer>
-          <ReactQueryDevtools />
-        </QueryClientProvider>,
-        { theme }
-      )
-    )
-    .catch((e) => {
-      const errorEl = document.createElement("span");
-      errorEl.innerHTML = e;
-      document.body.appendChild(errorEl);
-    });
+export default (child) =>
+    Promise.all([getUserTheme()])
+        .then(([theme]) =>
+            layout(
+                <QueryClientProvider client={queryClient}>
+                    <GlobalStyle />
+                    <StyledContainer>{child}</StyledContainer>
+                    <ReactQueryDevtools />
+                </QueryClientProvider>,
+                { theme }
+            )
+        )
+        .catch((e) => {
+            const errorEl = document.createElement("span");
+            errorEl.innerHTML = e;
+            document.body.appendChild(errorEl);
+        });

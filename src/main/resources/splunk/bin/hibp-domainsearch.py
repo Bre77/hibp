@@ -1,89 +1,179 @@
-from splunk.rest import simpleRequest
-import json
-import sys
 import os
-import urllib.parse
+import sys
+import json
+import requests
+import itertools
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import common
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+from splunklib.modularinput import Script, Scheme, Argument, Event, EventWriter
 
 
-class configs(common.RestHandler):
-    # MAIN HANDLE
-    def handle(self, in_string):
-        args = self.getArgs(in_string)
+class Input(Script):
+    APP = "hibp"
 
-        # Crash for debugging
-        if args.get("path_info") == "crash":
-            raise Exception("CRASH")
+    def get_scheme(self):
+        scheme = Scheme("HIBP Domain Search")
+        scheme.description = "Retrieves Have I Been Pwned Domain Search data"
+        scheme.use_external_validation = True
+        scheme.streaming_mode_xml = True
+        scheme.use_single_instance = True
 
-        # Ensure server is specified, as its required by every method here
-        if "server" not in args["query"]:
-            return self.json_error("Missing required field", 400, str(e), 400)
+        scheme.add_argument(
+            Argument(
+                name="domain",
+                title="Domain",
+                data_type=Argument.data_type_number,
+                required_on_create=True,
+                required_on_edit=True,
+            ),
+        )
+        scheme.add_argument(
+            Argument(
+                name="apikey",
+                title="API Key",
+                data_type=Argument.data_type_string,
+                required_on_create=False,
+                required_on_edit=False,
+            ),
+        )
+        return scheme
 
-        # Get the relevant uri and token for the server specified
-        if args["query"]["server"] == "local":
-            uri = self.LOCAL_URI
-            token = self.AUTHTOKEN
-        else:
-            uri = f"https://{self.hostport(args['query']['server'])}"
-            token = self.gettoken(args["query"]["server"])
-        if type(token) is dict:
-            return token
+    def stream_events(self, inputs, ew):
+        self.service.namespace["app"] = self.APP
+        # Get Variables
+        input_name, input_items = inputs.inputs.popitem()
+        kind, name = input_name.split("://")
 
-        if args["method"] == "POST":
-            try:
-                [server, file, user, app, stanza] = self.getInput(
-                    args, ["server", "file", "user", "app", "stanza"]
-                )
-            except Exception as e:
-                return self.json_error(
-                    "Missing one of the required fields: server, file, user, app, stanza",
-                    "Internal",
-                    str(e),
-                    400,
-                )
+        server = input_items["domain"]
+        group_id = input_items["apikey"]
+        
+        #https://haveibeenpwned.com/api/v3/breaches
+        #https://haveibeenpwned.com/api/v3/latestbreach
 
-            stanza = urllib.parse.quote(stanza, safe="")
+        api_key = [
+            x
+            for x in self.service.storage_passwords
+            if x.realm == "hibp" and x.username == server
+        ][0].clear_password
 
-            try:
-                resp, content = simpleRequest(
-                    f"{uri}/servicesNS/{user}/{app}/configs/conf-{file}/{stanza}/acl?output_mode=json",
-                    sessionKey=token,
-                    postargs=args["form"],
-                )
-                if resp.status != 200:
-                    return self.json_error(
-                        f"Changing ACL of {stanza} on {server} returned {resp.status}",
-                        resp.status,
-                        json.loads(content)["messages"][0]["text"],
+        # Checkpoint
+        checkpointfile = os.path.join(
+            self._input_definition.metadata["checkpoint_dir"],
+            f"{name}.json",
+        )
+
+        try:
+            with open(checkpointfile, "r") as f:
+                prev_done = json.load(f)
+        except:
+            prev_done = []
+        next_done = []
+
+        # Get Data
+        with requests.session() as s:
+            s.headers.update({"Authorization": f"Token {api_key}"})
+            with s.get(
+                f"https://{server}.cymru.com/api/jobs?group_id={group_id}"
+            ) as jobs_response:
+                if not jobs_response.ok:
+                    ew.log(
+                        EventWriter.ERROR,
+                        f'Failed to get jobs from group_id={group_id} group_name={name} status=${job_response.status_code} response="{jobs_response.text}"',
                     )
-                s = json.loads(content)["entry"][0]
-            except Exception as e:
-                return self.json_error(
-                    f"POST request to {uri}/servicesNS/{user}/{app}/configs/conf-{file}/{stanza}/acl failed",
-                    e.__class__.__name__,
-                    str(e),
-                )
-            return self.json_response(
-                {
-                    "sharing": s["acl"]["sharing"],
-                    "owner": s["acl"]["owner"],
-                    "write": [0, 1][s["acl"]["can_write"]],
-                    "change": [0, 1][s["acl"]["can_change_perms"]],
-                    "readers": s["acl"]["perms"].get("read", [])
-                    if s["acl"]["perms"]
-                    else [],
-                    "writers": s["acl"]["perms"].get("write", [])
-                    if s["acl"]["perms"]
-                    else [],
-                    "share": [
-                        [0, 1][s["acl"]["can_share_global"]],
-                        [0, 1][s["acl"]["can_share_app"]],
-                        [0, 1][s["acl"]["can_share_user"]],
-                    ],
-                },
-                201,
-            )
+                    return
+                jobs = jobs_response.json()["data"]
 
-        return self.json_error("Method Not Allowed", 405)
+                if len(jobs) == 0:
+                    ew.log(
+                        EventWriter.INFO,
+                        f"No jobs found in group_id={group_id} group_name={name}",
+                    )
+                    return
+
+                for job in jobs:
+                    job_id = job["id"]
+
+                    # Check Job
+                    if job["status"] != "Completed":
+                        ew.log(
+                            EventWriter.INFO,
+                            f"Skipping job={job_id} in group_id={group_id} group_name={name} because it hasnt finished",
+                        )
+                        continue
+                    next_done.append(job_id)
+                    if job_id in prev_done:
+                        ew.log(
+                            EventWriter.INFO,
+                            f"Skipping job={job_id} in group_id={group_id} group_name={name} since we have downloaded it already",
+                        )
+                        continue
+                    prev_done.append(job_id)
+
+                    # Update Lookup
+                    try:
+                        lookup = f"{os.getenv('SPLUNK_HOME')}/etc/apps/TA-cyber_recon/lookups/{name}_iplist.csv"
+                        queries = json.loads(job["input"])["queries"]
+                        # Handle queries being a dict or list
+                        if type(queries) is dict:
+                            queries = queries.values()
+                        ips = set(
+                            itertools.chain.from_iterable(
+                                [
+                                    query.get("any_ip_addr", "").split(",")
+                                    for query in queries
+                                    if "any_ip_addr" in query
+                                ]
+                            )
+                        )
+
+                        with open(
+                            lookup,
+                            "a",
+                        ) as f:
+                            for ip in ips:
+                                if len(ip.split(".")) != 4:
+                                    continue
+                                if "/" not in ip:
+                                    ip += "/32"
+                                f.write(
+                                    f'\n"{ip}","{job["name"]}","{name}","CIDR","",""'
+                                )
+                    except Exception as e:
+                        ew.log(
+                            EventWriter.ERROR,
+                            f'Failed to update lookup={lookup} for job={job_id} group_name={name} error="{e}"',
+                        )
+
+                    # Download Data
+                    with s.get(
+                        f"https://{server}.cymru.com/api/jobs/{job_id}?format=json",
+                        stream=True,
+                    ) as job_response:
+                        if not job_response.ok:
+                            ew.log(
+                                EventWriter.ERROR,
+                                f'Failed to get job={job_id} group_id={group_id} group_name={name} status=${job_response.status_code} response="{job_response.text}"',
+                            )
+                            continue
+                        for line in job_response.iter_lines():
+                            ew.write_event(
+                                Event(
+                                    index=name,
+                                    host=job["name"],
+                                    data=line.decode("utf-8"),
+                                    source=f"{server}.cymru.com/api/jobs/{job_id}",
+                                )
+                            )
+
+                    # Update checkpoint incase we crash
+                    with open(checkpointfile, "w") as f:
+                        json.dump(prev_done, f)
+
+        # Update checkpoint with only the jobs still in the API response
+        with open(checkpointfile, "w") as f:
+            json.dump(next_done, f)
+
+
+if __name__ == "__main__":
+    exitcode = Input().run(sys.argv)
+    sys.exit(exitcode)
