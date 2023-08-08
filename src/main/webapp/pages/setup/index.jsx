@@ -1,5 +1,6 @@
 import Button from "@splunk/react-ui/Button";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
+import Multiselect from '@splunk/react-ui/Multiselect';
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
@@ -28,40 +29,52 @@ const MutateButton = ({ mutation, label, disabled = false }) => (
 
 const AddEntry = () => {
     const queryClient = useQueryClient();
-    const [domain, setDomain] = useState("");
-    const handleDomain = (e, { value }) => setDomain(value);
+    
     const [apiKey, setApiKey] = useState("");
     const handleApiKey = (e, { value }) => setApiKey(value);
+    const [domains, setDomains] = useState([]);
+    const handleDomains = (e, { values }) => setDomains(values);
+
+    const subscribeddomains = useQuery({
+        queryKey: ["domains",apiKey],
+        queryFn: ()=>fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+            ...defaultFetchInit,
+            method: "POST",
+            body: makeBody({ apikey: apiKey, endpoint: "subscribeddomains" }),
+            placeholderData: []
+        }),
+        enabled: !!apiKey
+    })
 
     const addApiKey = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
+            Promise.all(domains.map(domain => fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
                 ...defaultFetchInit,
                 method: "POST",
                 body: makeBody({ name: domain, realm: "hibp", password: apiKey }),
-            }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setDomain("") && setApiKey("") : Promise.reject())),
+            }).then((res) => (res.ok ? queryClient.invalidateQueries("domains") && setDomains([]) : Promise.reject()))))
     });
     return (
         <>
-            <ControlGroup label="Domain">
-                <Text value={domain} onChange={handleDomain} />
-            </ControlGroup>
+            
             <ControlGroup label="API Key">
                 <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle />
+            </ControlGroup>
+            <ControlGroup label="Domain">
+                <Multiselect values={domains} onChange={handleDomains} isLoadingOptions={domains.isLoading} disabled={!domains.data}>
+                    {subscribeddomains.data?.map(x=> <Multiselect.Option label={x.DomainName} value={x.DomainName} />)}
+                </Multiselect>
             </ControlGroup>
             <ControlGroup label="">
                 <MutateButton mutation={addApiKey} label="Add" />
             </ControlGroup>
-            <span>
-                {domain} {apiKey}
-            </span>
         </>
     );
 };
 
 const Entries = () => {
     const { data } = useQuery({
-        queryKey: ["apikeys"],
+        queryKey: ["domains"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
                 res.ok ? res.json().then((x) => x.entry.map((y) => y.content)) : Promise.reject()

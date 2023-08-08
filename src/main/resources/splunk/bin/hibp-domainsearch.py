@@ -56,13 +56,15 @@ class Input(Script):
         self.update_lookup(ew)
 
         apikeys = [
-            x.clear_password
+            x
             for x in self.service.storage_passwords
             if x.realm == "hibp"
         ]
 
         for apikey in apikeys:
-            with requests.get("https://haveibeenpwned.com/api/v3/subscribeddomains")
+            with requests.get("https://haveibeenpwned.com/api/v3/breacheddomain/{x.username}") as r:
+                if not r.ok:
+                    continue
 
         # Checkpoint
         checkpointfile = os.path.join(
