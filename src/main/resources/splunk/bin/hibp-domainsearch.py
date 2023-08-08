@@ -1,12 +1,12 @@
 import os
 import sys
+import csv
 import json
 import requests
-import itertools
+from splunk.rest import simpleRequest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Argument, Event, EventWriter
-
 
 class Input(Script):
     APP = "hibp"
@@ -14,28 +14,10 @@ class Input(Script):
     def get_scheme(self):
         scheme = Scheme("HIBP Domain Search")
         scheme.description = "Retrieves Have I Been Pwned Domain Search data"
-        scheme.use_external_validation = True
+        scheme.use_external_validation = False
         scheme.streaming_mode_xml = True
         scheme.use_single_instance = True
 
-        scheme.add_argument(
-            Argument(
-                name="domain",
-                title="Domain",
-                data_type=Argument.data_type_number,
-                required_on_create=True,
-                required_on_edit=True,
-            ),
-        )
-        scheme.add_argument(
-            Argument(
-                name="apikey",
-                title="API Key",
-                data_type=Argument.data_type_string,
-                required_on_create=False,
-                required_on_edit=False,
-            ),
-        )
         return scheme
 
     def stream_events(self, inputs, ew):
@@ -44,11 +26,33 @@ class Input(Script):
         input_name, input_items = inputs.inputs.popitem()
         kind, name = input_name.split("://")
 
-        server = input_items["domain"]
-        group_id = input_items["apikey"]
+        # Request latest breach
+        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
+            if not r.ok:
+                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}")
+                return
+            latestbreach = r.json()['Name']
+
+        with open(os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach"), "a+") as f:
+            if latestbreach == f.read():
+                ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}")
+                return
+            f.seek(0)
+            f.write(latestbreach)
+            f.truncate()
         
+        # Request all breaches
+        with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
+            if not r.ok:
+                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breaches returned {r.status_code}")
+                return
+            breaches = r.json()
+
+        # Read current CSV
+        
+
         #https://haveibeenpwned.com/api/v3/breaches
-        #https://haveibeenpwned.com/api/v3/latestbreach
+        #
 
         api_key = [
             x

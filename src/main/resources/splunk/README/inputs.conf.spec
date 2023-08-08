@@ -1,0 +1,1 @@
+[hibp-domainsearch://<name>]
