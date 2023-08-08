@@ -1,3 +1,3 @@
-# Badrcm
+# hibp
 
-Add all information required to get started with @splunk/badrcm here.
+Add all information required to get started with @splunk/hibp here.

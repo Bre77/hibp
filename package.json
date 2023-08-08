@@ -13,7 +13,7 @@
         "lint:ci": "yarn run eslint:ci && yarn run stylelint",
         "start": "webpack --watch",
         "stylelint": "stylelint \"src/**/*.{js,jsx}\" --config stylelint.config.js",
-        "package": "./make.sh dist/badrcm.spl"
+        "package": "./make.sh dist/hibp.spl"
     },
     "dependencies": {
         "@splunk/react-ui": "^4.14.0",

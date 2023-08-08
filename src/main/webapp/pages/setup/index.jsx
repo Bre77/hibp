@@ -1,5 +1,6 @@
 import Button from "@splunk/react-ui/Button";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
+import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
 import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
@@ -34,10 +35,9 @@ const AddEntry = () => {
 
     const addApiKey = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords`, {
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
                 ...defaultFetchInit,
                 method: "POST",
-                params: { output_mode: "json" },
                 body: makeBody({ name: domain, realm: "hibp", password: apiKey }),
             }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setDomain("") && setApiKey("") : Promise.reject())),
     });
@@ -59,21 +59,40 @@ const AddEntry = () => {
     );
 };
 
-const Setup = () => {
-    const queryClient = useQueryClient();
-
-    const apikeys = useQuery({
+const Entries = () => {
+    const { data } = useQuery({
         queryKey: ["apikeys"],
         queryFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords`, {
-                ...defaultFetchInit,
-                params: { output_mode: "json", count: -1 },
-            }).then((res) => (res.ok ? res.json() : Promise.reject())),
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
+                res.ok ? res.json().then((x) => x.entry.map((y) => y.content)) : Promise.reject()
+            ),
+        placeholderData: [],
     });
+    return (
+        <Table stripeRows>
+            <Table.Head>
+                <Table.HeadCell>Domain</Table.HeadCell>
+                <Table.HeadCell>API Key</Table.HeadCell>
+                <Table.HeadCell>Delete</Table.HeadCell>
+            </Table.Head>
+            <Table.Body>
+                {data.map((x) => (
+                    <Table.Row>
+                        <Table.Cell>{x.username}</Table.Cell>
+                        <Table.Cell>{x.clear_password.slice(0, 5)}...</Table.Cell>
+                        <Table.Cell></Table.Cell>
+                    </Table.Row>
+                ))}
+            </Table.Body>
+        </Table>
+    );
+};
 
+const Setup = () => {
     return (
         <>
             <AddEntry />
+            <Entries />
         </>
     );
 };

@@ -53,7 +53,7 @@ class Input(Script):
         api_key = [
             x
             for x in self.service.storage_passwords
-            if x.realm == "hibp" and x.username == server
+            if x.realm == "hibp"
         ][0].clear_password
 
         # Checkpoint
