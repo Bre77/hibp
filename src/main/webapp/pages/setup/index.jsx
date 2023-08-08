@@ -1,24 +1,18 @@
 import Button from "@splunk/react-ui/Button";
+import Card from "@splunk/react-ui/Card";
+import CardLayout from "@splunk/react-ui/CardLayout";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
+import DL from "@splunk/react-ui/DefinitionList";
 import Multiselect from "@splunk/react-ui/Multiselect";
+import P from "@splunk/react-ui/Paragraph";
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
 import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
 import React, { useState } from "react";
 
 import Page from "../../shared/page";
-
-const QUERY_API = {
-    queryKey: ["domains"],
-    queryFn: () =>
-        fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
-            res.ok ? res.json().then((x) => x.entry.map((y) => y.content)) : Promise.reject()
-        ),
-    placeholderData: [],
-};
 
 const makeBody = (data) => {
     return Object.entries(data).reduce((form, [key, value]) => {
@@ -40,81 +34,104 @@ const AddEntry = () => {
     const queryClient = useQueryClient();
 
     const [apiKey, setApiKey] = useState("");
-    const handleApiKey = (e, { value }) => setApiKey(value);
-    const [domains, setDomains] = useState([]);
-    const handleDomains = (e, { values }) => setDomains(values);
-
-    const entries = useQuery(QUERY_API).data || [];
-
-    const subscribeddomains = useQuery({
-        queryKey: ["apikeys", apiKey],
-        queryFn: () =>
-            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
-                ...defaultFetchInit,
-                method: "POST",
-                body: makeBody({ apikey: apiKey, endpoint: "subscribeddomains" }),
-                placeholderData: [],
-            })
-                .then((res) => (res.ok ? res.json() : Promise.reject()))
-                .then((x) => {
-                    const active = entries.map((x) => x.username);
-                    const d = x.map((y) => y.DomainName).filter((z) => !active.includes(z));
-                    console.log(active, x, d);
-                    setDomains(d);
-                    return d;
-                }),
-        enabled: apiKey.length === 32,
-    });
 
     const addApiKey = useMutation({
         mutationFn: () =>
-            Promise.all(
-                domains.map((domain) =>
+            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+                ...defaultFetchInit,
+                method: "POST",
+                body: makeBody({ apikey: apiKey, endpoint: "subscription/status" }),
+            })
+                .then((res) => res.json().then((data) => (res.ok ? Promise.resolve() : Promise.reject(data.message))))
+                .then(() =>
                     fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
                         ...defaultFetchInit,
                         method: "POST",
-                        body: makeBody({ name: domain, realm: "hibp", password: apiKey }),
-                    }).then((res) => (res.ok ? queryClient.invalidateQueries("domains") && setDomains([]) : Promise.reject()))
-                )
-            ),
+                        body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
+                    }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject()))
+                ),
     });
+
+    const handleApiKey = (e, { value }) => {
+        setApiKey(value);
+        addApiKey.reset();
+    };
 
     return (
         <>
-            <ControlGroup label="API Key" error={subscribeddomains.error}>
+            <ControlGroup label="Add HIBP API Key" error={addApiKey.error}>
                 <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle error={apiKey.length > 0 && apiKey.length !== 32} />
-            </ControlGroup>
-            <ControlGroup label="Domains">
-                <Multiselect values={domains} onChange={handleDomains} isLoadingOptions={subscribeddomains.isLoading} disabled={!subscribeddomains.data}>
-                    {subscribeddomains.data && subscribeddomains.data.map((x) => <Multiselect.Option key={x} label={x} value={x} />)}
-                </Multiselect>
-            </ControlGroup>
-            <ControlGroup label="">
-                <MutateButton mutation={addApiKey} label="Add" disabled={domains.length === 0} />
+                <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
             </ControlGroup>
         </>
     );
 };
 
 const Entries = () => {
-    const { data } = useQuery(QUERY_API);
+    const { data } = useQuery({
+        queryKey: ["apikeys"],
+        queryFn: () =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
+                res.ok ? res.json().then((x) => x.entry.map((y) => y.content.clear_password)) : Promise.reject()
+            ),
+        placeholderData: [],
+    });
     return (
-        <Table stripeRows>
-            <Table.Head>
-                <Table.HeadCell>Domain</Table.HeadCell>
-                <Table.HeadCell>API Key</Table.HeadCell>
-                <Table.HeadCell>Delete</Table.HeadCell>
-            </Table.Head>
-            <Table.Body>
-                {data.map((x) => (
-                    <Table.Row key={x.username}>
-                        <Table.Cell>{x.username}</Table.Cell>
-                        <Table.Cell>{x.clear_password.slice(0, 5)}...</Table.Cell>
-                        <Table.Cell></Table.Cell>
-                    </Table.Row>
-                ))}
-            </Table.Body>
-        </Table>
+        <CardLayout>
+            {data.map((apikey) => (
+                <ApiCard apikey={apikey} />
+            ))}
+        </CardLayout>
+    );
+};
+
+const ApiCard = ({ apikey }) => {
+    console.log(apikey);
+    const { data: subscription } = useQuery({
+        queryKey: ["subscription", apikey],
+        queryFn: () =>
+            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+                ...defaultFetchInit,
+                method: "POST",
+                body: makeBody({ apikey, endpoint: "subscription/status" }),
+            }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+    });
+    const { data: domains } = useQuery({
+        queryKey: ["domains", apikey],
+        queryFn: () =>
+            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+                ...defaultFetchInit,
+                method: "POST",
+                body: makeBody({ apikey, endpoint: "subscribeddomains" }),
+            }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+    });
+
+    return (
+        <Card style={{ maxWidth: "40em" }}>
+            <Card.Header title={`${subscription?.SubscriptionName || "Loading"} subscription`} />
+            <Card.Body>
+                <P>{subscription?.Description}</P>
+                <Table>
+                    <Table.Head>
+                        <Table.HeadCell>Domain</Table.HeadCell>
+                        <Table.HeadCell>Pwned</Table.HeadCell>
+                        <Table.HeadCell>Change</Table.HeadCell>
+                    </Table.Head>
+                    <Table.Body>
+                        {domains?.map((domain) => (
+                            <Table.Row key={domain.DomainName}>
+                                <Table.Cell>{domain.DomainName}</Table.Cell>
+                                <Table.Cell>{domain.PwnCount}</Table.Cell>
+                                <Table.Cell>{domain.PwnCount - (domain.PwnCountExcludingSpamListsAtLastSubscriptionRenewal || 0)}</Table.Cell>
+                            </Table.Row>
+                        ))}
+                    </Table.Body>
+                </Table>
+            </Card.Body>
+            <Card.Footer showBorder={false}>
+                <Button label="Remove" />
+            </Card.Footer>
+        </Card>
     );
 };
 
