@@ -19,13 +19,8 @@ class Input(Script):
         scheme.use_single_instance = True
 
         return scheme
-
-    def stream_events(self, inputs, ew):
-        self.service.namespace["app"] = self.APP
-        # Get Variables
-        input_name, input_items = inputs.inputs.popitem()
-        kind, name = input_name.split("://")
-
+    
+    def update_lookup(self, ew):
         # Request latest breach
         with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
             if not r.ok:
@@ -48,17 +43,26 @@ class Input(Script):
                 return
             breaches = r.json()
 
-        # Read current CSV
-        
+        #Update Lookup
+        pass
 
-        #https://haveibeenpwned.com/api/v3/breaches
-        #
 
-        api_key = [
-            x
+    def stream_events(self, inputs, ew):
+        self.service.namespace["app"] = self.APP
+        # Get Variables
+        input_name, input_items = inputs.inputs.popitem()
+        kind, name = input_name.split("://")
+
+        self.update_lookup(ew)
+
+        apikeys = [
+            x.clear_password
             for x in self.service.storage_passwords
             if x.realm == "hibp"
-        ][0].clear_password
+        ]
+
+        for apikey in apikeys:
+            with requests.get("https://haveibeenpwned.com/api/v3/subscribeddomains")
 
         # Checkpoint
         checkpointfile = os.path.join(
