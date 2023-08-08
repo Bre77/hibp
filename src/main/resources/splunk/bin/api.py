@@ -18,11 +18,21 @@ class index(PersistentServerConnectionApplication):
         if args["method"] != "POST":
             return {"payload": "", "status": 504}
 
-        if not (APIKEY := args.get("apikey")):
+        form = dict(args.get("form", []))
+
+        try:
+            APIKEY = form["apikey"]
+        except KeyError:
             return {"payload": "No apikey provided", "status": 400}
         
-        if not (ENDPOINT := args.get("endpoint")):
+        try:
+            ENDPOINT = form["endpoint"]
+        except KeyError:
             return {"payload": "No endpoint provided", "status": 400}
 
-        with requests.get(f"https://haveibeenpwned.com/api/v3/{ENDPOINT}", headers={"hibp-api-key": APIKEY, "user-agent": "HIBP-Splunk-App"}) as r:
-            return {"payload": r.text, "status": r.status_code}
+        try:
+            with requests.get(f"https://haveibeenpwned.com/api/v3/{ENDPOINT}", headers={"hibp-api-key": APIKEY, "user-agent": "HIBP-Splunk-App"}) as r:
+                return {"payload": r.text, "status": r.status_code}
+        except Exception as e:
+            return {"payload": str(e), "status": 500}
+        
