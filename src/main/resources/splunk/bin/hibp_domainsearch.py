@@ -141,7 +141,10 @@ class Input(Script):
                             key = f"{alias}@{domain}"
 
                             # Pull this emails record from KVstore
-                            pwned = collection.data.query_by_id(key)
+                            try:
+                                pwned = collection.data.query_by_id(key)
+                            except:
+                                pwned = None
 
                             # Find only new breaches by comparing API with KVstore
                             newbreaches = [breach for breach in breaches if breach not in pwned['Breaches']] if pwned else breaches

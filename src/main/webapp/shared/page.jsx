@@ -29,6 +29,7 @@ const queryClient = new QueryClient({
             staleTime: Infinity,
             retry: (failureCount, error) => error >= 500 && failureCount < 3,
             refetchOnMount: false,
+            refetchOnWindowFocus: false,
         },
     },
 });
