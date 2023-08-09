@@ -1,0 +1,19 @@
+[]
+access = read : [ * ], write : [ admin, sc_admin ]
+
+
+[collections/hibp-pwned]
+access = read : [ * ], write : []
+export = system
+owner = nobody
+
+[lookups/hibp-breaches.csv]
+access = read : [ * ], write : []
+export = system
+owner = nobody
+
+[transforms]
+export = system
+
+[props]
+export = system
