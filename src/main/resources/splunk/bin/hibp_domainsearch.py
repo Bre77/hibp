@@ -41,16 +41,26 @@ class Input(Script):
                 return
             breaches = r.json()
 
-        #Update CSV Lookup
-        try:
-            with open(os.path.join(os.getenv('SPLUNK_HOME'),"etc","apps",self.APP,"lookups","hibp-breaches.csv"), "w") as f:
-                writer = csv.writer(f)
-                writer.writerow(["Name","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
-                for breach in breaches:
-                    writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],"|".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
-        except Exception as e:
-            ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup. {str(e)}")
-            return
+        # Update CSV Lookup
+        #try:
+        #    with open(os.path.join(os.getenv('SPLUNK_HOME'),"etc","apps",self.APP,"lookups","hibp-breaches.csv"), "w") as f:
+        #        writer = csv.writer(f)
+        #        writer.writerow(["Breach","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
+        #        for breach in breaches:
+        #            writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],"|".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
+        #except Exception as e:
+        #    ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup. {str(e)}")
+        #    return
+        
+        # Update KVstore Collection
+        collection = self.service.kvstore["hibp-breaches"]
+        for breach in breaches:
+            key = breach['Name']
+            try:
+                collection.data.update(key, breach)
+            except:
+                breach['_key'] = key
+                collection.data.insert(breach)
 
         with open(path, "w") as f:
             f.write(latestbreach)
@@ -127,11 +137,12 @@ class Input(Script):
                         for alias in emails:
                             breaches = emails[alias]
                             key = f"{alias}@{domain}"
+
                             #Pull this users record from KVstore
-                            pwned = collection.data.query_by_id(id=key, fields="_key,Breaches")
+                            pwned = collection.data.query_by_id(key)
                             ew.log(EventWriter.INFO, json.dumps(pwned))
                             if pwned:
-                                newbreaches = [breach for breach in breaches if breach not in pwned[0]['Breaches']]
+                                newbreaches = [breach for breach in breaches if breach not in pwned['Breaches']]
                             else:
                                 newbreaches = breaches
                             #ew.log(EventWriter.INFO, json.dumps(newbreaches))
@@ -146,9 +157,9 @@ class Input(Script):
                                         )
                                     )
                                 if pwned:
-                                    collection.data.update(pwned[0]['_key'],{"Breaches": breaches}) #"Alias": alias, "Domain": domain, 
+                                    collection.data.update(key,{"Breaches": breaches}) #"Alias": alias, "Domain": domain, 
                                 else:
-                                    collection.data.insert({"_key": f"{alias}@{domain}", "Breaches":  breaches})
+                                    collection.data.insert({"_key": key, "Breaches":  breaches})
                                 
 
                         with open(path, "w") as f:
