@@ -126,9 +126,10 @@ class Input(Script):
 
                         for alias in emails:
                             breaches = emails[alias]
+                            key = f"{alias}@{domain}"
                             #Pull this users record from KVstore
-                            pwned = collection.data.query(query={"Alias": alias, "Domain": domain}, fields="Breaches", limit=1)
-                            #ew.log(EventWriter.INFO, json.dumps(pwned))
+                            pwned = collection.data.query_by_id(id=key, fields="_key,Breaches")
+                            ew.log(EventWriter.INFO, json.dumps(pwned))
                             if pwned:
                                 newbreaches = [breach for breach in breaches if breach not in pwned[0]['Breaches']]
                             else:
@@ -147,7 +148,7 @@ class Input(Script):
                                 if pwned:
                                     collection.data.update(pwned[0]['_key'],{"Breaches": breaches}) #"Alias": alias, "Domain": domain, 
                                 else:
-                                    collection.data.insert({"Alias": alias, "Domain": domain, "Breaches":  breaches})
+                                    collection.data.insert({"_key": f"{alias}@{domain}", "Breaches":  breaches})
                                 
 
                         with open(path, "w") as f:
