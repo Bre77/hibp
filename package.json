@@ -2,7 +2,7 @@
     "name": "hibp",
     "version": "0.1.0",
     "license": "https://cdn.splunkbase.splunk.com/static/misc/eula.html",
-    "splunkbaseid": null,
+    "splunkbaseid": 6996,
     "scripts": {
         "build": "node bin/build.js build",
         "eslint": "eslint src --ext \".js,.jsx\"",
