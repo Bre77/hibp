@@ -1,3 +1,2 @@
 [hibp_domainsearch://default]
-* No params required
-param1 =
+delay = <seconds>
