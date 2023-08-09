@@ -4,6 +4,7 @@ import CardLayout from "@splunk/react-ui/CardLayout";
 import ComboBox from "@splunk/react-ui/ComboBox";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
 import DL from "@splunk/react-ui/DefinitionList";
+import Link from "@splunk/react-ui/Link";
 import Multiselect from "@splunk/react-ui/Multiselect";
 import P from "@splunk/react-ui/Paragraph";
 import Table from "@splunk/react-ui/Table";
@@ -12,7 +13,6 @@ import { splunkdPath } from "@splunk/splunk-utils/config";
 import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
-
 import Page from "../../shared/page";
 
 const makeBody = (data) => {
@@ -74,7 +74,18 @@ const AddEntry = () => {
 
     return (
         <>
-            <ControlGroup label="Add HIBP API Key" error={addApiKey.error}>
+            <ControlGroup
+                label="Add HIBP API Key"
+                error={addApiKey.error}
+                help={
+                    <>
+                        Get from{" "}
+                        <Link to="https://haveibeenpwned.com/API/Key" openInNewContext>
+                            haveibeenpwned.com/API/Key
+                        </Link>
+                    </>
+                }
+            >
                 <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle error={apiKey.length > 0 && apiKey.length !== 32} />
                 <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
             </ControlGroup>
@@ -142,37 +153,50 @@ const ApiCard = ({ name, apikey }) => {
     );
 };
 
-const DISABLED = "Disabled";
+const DISABLED = "";
+
 const Input = () => {
-    const [index, setIndex] = useState();
-    const handleIndex = (e, { value }) => {
-        setIndex(value);
-        if (value === "Disabled") return;
+    const queryClient = useQueryClient();
+    const [local, setLocal] = useState(DISABLED);
 
-    };
-    const { data: input } = useQuery({
-        queryKey: ["input"],
-        queryFn: () => fetch(`${splunkdPath}/services/data/inputs/hibp?output_mode=json&search=datatype=event&search=isInternal=0`, defaultFetchInit).then((res) =>
-        res.ok ? res.json().then((x) => x.entry.map((y) => y.name)) : Promise.reject()
-    ),
+    const handleRemote = (res) => (res.ok ? res.json() : Promise.reject()).then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index));
 
-    const { data: indexes } = useQuery({
-        queryKey: ["indexes"],
-        queryFn: () =>
-            fetch(`${splunkdPath}/services/data/indexes?output_mode=json&search=datatype=event&search=isInternal=0`, defaultFetchInit).then((res) =>
-                res.ok ? res.json().then((x) => x.entry.map((y) => y.name)) : Promise.reject()
-            ),
-        placeholderData: [],
+    const updateRemote = useMutation({
+        mutationFn: () =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, {
+                ...defaultFetchInit,
+                method: "POST",
+                body: makeBody(local === DISABLED ? { disabled: "true" } : { disabled: "false", index: local }),
+            })
+                .then(handleRemote)
+                .then((data) => queryClient.setQueryData(["input"], () => data)),
     });
-    console.log(indexes);
+
+    const handleLocal = (e, { value }) => {
+        updateRemote.reset();
+        setLocal(value);
+    };
+
+    const { data: remote } = useQuery({
+        queryKey: ["input"],
+        queryFn: () =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, defaultFetchInit).then(
+                handleRemote
+            ),
+        placeholderData: DISABLED,
+        onSuccess: (data) => setLocal(data),
+    });
+
     return (
-        <ControlGroup label="Input and Index">
-            <ComboBox value={index} onChange={handleIndex}>
-                <ComboBox.Option value="Disabled" />
-                {indexes?.map((i) => (
-                    <ComboBox.Option key={i} value={i} />
-                ))}
-            </ComboBox>
+        <ControlGroup label="Splunk Index">
+            <Text value={local} onChange={handleLocal} placeholder="Disabled" />
+            <MutateButton
+                mutation={updateRemote}
+                label={
+                    local === DISABLED ? (remote === DISABLED ? "Already Disabled" : "Disable Input") : remote === DISABLED ? "Save and Enable" : "Update Index"
+                }
+                disabled={local === remote}
+            />
         </ControlGroup>
     );
 };
@@ -180,8 +204,9 @@ const Input = () => {
 const Setup = () => {
     return (
         <>
-            <AddEntry />
             <Input />
+            <AddEntry />
+
             <Entries />
         </>
     );

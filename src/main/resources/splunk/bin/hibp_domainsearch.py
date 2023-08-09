@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import json
+import time
 import requests
 from splunk.rest import simpleRequest
 
@@ -23,10 +24,13 @@ class Input(Script):
     def update_lookup(self, ew, latestbreach):
         # Check if latest recorded breach has changed
         path = os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach")
-        with open(path, "r") as f:
-            if latestbreach == f.read():
-                ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
-                return
+        try:
+            with open(path, "r") as f:
+                if latestbreach == f.read():
+                    ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
+                    return
+        except:
+            ew.log(EventWriter.DEBUG, f"Latest breach has not ever been checked, will update breaches lookup")
         
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
@@ -38,22 +42,19 @@ class Input(Script):
         #Update CSV Lookup
         try:
             with open(os.path.join(os.getenv('SPLUNK_HOME'),"etc","apps",self.APP,"lookups","hibp-breaches.csv"), "w") as f:
-                with csv.writer(f) as writer:
-                    csv_writer.writerow(["Name","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
-                    for breach in breaches:
-                        writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],",".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
-        except:
-            ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup")
+                writer = csv.writer(f)
+                writer.writerow(["Name","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
+                for breach in breaches:
+                    writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],",".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
+        except Exception as e:
+            ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup. {str(e)}")
             return
 
-        with open(path, "r") as f:
+        with open(path, "w") as f:
             f.write(latestbreach)
 
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
-        # Get Variables
-        input_name, input_items = inputs.inputs.popitem()
-        kind, name = input_name.split("://")
 
         # Request latest breach
         with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
@@ -65,26 +66,40 @@ class Input(Script):
         # Update CSV Lookup
         self.update_lookup(ew, latestbreach)
         
+        ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
-        apikeys = [
-            x
-            for x in self.service.storage_passwords
-            if x.realm == "hibp"
-        ]
+        #apikeys = [
+        #    x
+        #    for x in self.service.storage_passwords
+        #    if x.realm == "hibp"
+        #]
+        apikeys = ["d25c556dbd1645a6bfd45d438c91eac3"]
 
         for apikey in apikeys:
+            ew.log(EventWriter.DEBUG, apikey)
             with requests.Session() as s:
                 s.headers.update({"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"})
 
                 # Get all domains
-                with s.get("https://haveibeenpwned.com/api/v3/subscribeddomains") as r:
+                url = "https://haveibeenpwned.com/api/v3/subscribeddomains"
+                with s.get(url) as r:
                     if not r.ok:
-                        ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/subscribeddomains returned {r.status_code}")
+                        ew.log(EventWriter.ERROR, f"{url} returned {r.status_code}")
                         continue
                     domains = r.json()
+                    
 
                     for d in domains:
+                        ew.write_event(
+                            Event(
+                                source=url,
+                                sourcetype=f"hibp:domain",
+                                data=json.dumps(d),
+                            )
+                        )
+
                         domain = d["DomainName"]
+
                         # Checkpoint
                         path = os.path.join(self._input_definition.metadata["checkpoint_dir"],domain)
                         try:
@@ -96,9 +111,14 @@ class Input(Script):
                             pass
 
                         # Get all breached emails in domain
-                        with s.get(f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}") as r:
+                        time.sleep(6)
+                        url = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
+                        with s.get(url) as r:
+                            if status_code == 404:
+                                ew.log(EventWriter.INFO, f"{domain} has no breached accounts")
+                                continue
                             if not r.ok:
-                                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain} returned {r.status_code}")
+                                ew.log(EventWriter.ERROR, f"{url} returned {r.status_code}")
                                 continue
                             emails = r.json()
 
@@ -106,6 +126,7 @@ class Input(Script):
                                 for breach in emails[alias]:
                                     ew.write_event(
                                         Event(
+                                            source=url,
                                             sourcetype=f"hibp:pwned",
                                             data=f"{alias} {breach}",
                                         )

@@ -1,1 +1,3 @@
-[hibp-domainsearch://<name>]
+[hibp_domainsearch://default]
+* No params required
+param1 =
