@@ -1,0 +1,30 @@
+<dashboard version="1.1" theme="dark">
+  <label>Summary</label>
+  <row>
+    <panel>
+      <title>Domains Monitored</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:domain" | stats dc(DomainName)</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Pwned Accounts (excluding pastes)</title>
+      <chart>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:domain" | stats latest(PwnCountExcludingSpamLists) as PwnCount by DomainName</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>
