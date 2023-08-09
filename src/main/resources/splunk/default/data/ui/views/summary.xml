@@ -5,7 +5,33 @@
       <title>Domains Monitored</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:domain" | stats dc(DomainName)</query>
+          <query>`hibp_index` sourcetype="hibp:domain" | timechart dc(DomainName) as count | streamstats sum(count) as count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Accounts Breached</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" | timechart dc(Email) as count | streamstats sum(count) as count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Breaches with Accounts</title>
+      <single>
+        <search>
+          <query>index=main sourcetype="hibp:pwned" | dedup Breach | timechart dc(Breach) as count | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -13,18 +39,19 @@
         <option name="refresh.display">progressbar</option>
       </single>
     </panel>
+  </row>
+  <row>
     <panel>
-      <title>Pwned Accounts (excluding pastes)</title>
-      <chart>
+      <title>Users Per Breach and Domain</title>
+      <table>
         <search>
-          <query>`hibp_index` sourcetype="hibp:domain" | stats latest(PwnCountExcludingSpamLists) as PwnCount by DomainName</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" | chart dc(Alias) by Domain Breach limit=15</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
-        <option name="charting.chart">pie</option>
-        <option name="charting.drilldown">none</option>
+        <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
-      </chart>
+      </table>
     </panel>
   </row>
 </dashboard>
