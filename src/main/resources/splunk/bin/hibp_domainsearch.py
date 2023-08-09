@@ -9,6 +9,8 @@ from splunk.rest import simpleRequest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Argument, Event, EventWriter
 
+SLEEP = 7
+
 class Input(Script):
     APP = "hibp"
 
@@ -81,10 +83,10 @@ class Input(Script):
                 s.headers.update({"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"})
 
                 # Get all domains
-                url = "https://haveibeenpwned.com/api/v3/subscribeddomains"
-                with s.get(url) as r:
+                url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
+                with s.get(url1) as r:
                     if not r.ok:
-                        ew.log(EventWriter.ERROR, f"{url} returned {r.status_code}")
+                        ew.log(EventWriter.ERROR, f"{url1} returned {r.status_code}")
                         continue
                     domains = r.json()
                     
@@ -92,9 +94,11 @@ class Input(Script):
                     for d in domains:
                         ew.write_event(
                             Event(
-                                source=url,
+                                source=url1,
                                 sourcetype=f"hibp:domain",
                                 data=json.dumps(d),
+                                unbroken=False,
+                                done=False
                             )
                         )
 
@@ -111,14 +115,14 @@ class Input(Script):
                             pass
 
                         # Get all breached emails in domain
-                        time.sleep(6)
-                        url = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
-                        with s.get(url) as r:
-                            if status_code == 404:
+                        time.sleep(SLEEP)
+                        url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
+                        with s.get(url2) as r:
+                            if r.status_code == 404:
                                 ew.log(EventWriter.INFO, f"{domain} has no breached accounts")
                                 continue
                             if not r.ok:
-                                ew.log(EventWriter.ERROR, f"{url} returned {r.status_code}")
+                                ew.log(EventWriter.ERROR, f"{url2} returned {r.status_code}")
                                 continue
                             emails = r.json()
 
@@ -126,9 +130,10 @@ class Input(Script):
                                 for breach in emails[alias]:
                                     ew.write_event(
                                         Event(
-                                            source=url,
+                                            source=url2,
                                             sourcetype=f"hibp:pwned",
-                                            data=f"{alias} {breach}",
+                                            data=f"{alias}@{domain} {breach}",
+                                            unbroken=False,
                                         )
                                     )
 
