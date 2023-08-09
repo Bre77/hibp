@@ -106,8 +106,7 @@ class Input(Script):
                             with open(path, "r") as f:
                                 if latestbreach == f.read():
                                     #No new breaches for this domain
-                                    #continue
-                                    pass
+                                    continue
                         except:
                             pass
 
@@ -123,22 +122,18 @@ class Input(Script):
                                 continue
                             emails = r.json()
 
-                        # Get all existing breaches for this domain
                         collection = self.service.kvstore["hibp-pwned"]
-                        #ew.log(EventWriter.INFO, f"DOING QUERY FOR {domain}")
-                        #pwned = collection.data.query(query={"Domain": domain})
-                        #ew.log(EventWriter.INFO, json.dumps(pwned))
 
                         for alias in emails:
                             breaches = emails[alias]
                             #Pull this users record from KVstore
                             pwned = collection.data.query(query={"Alias": alias, "Domain": domain}, fields="Breaches", limit=1)
-                            ew.log(EventWriter.INFO, json.dumps(pwned))
+                            #ew.log(EventWriter.INFO, json.dumps(pwned))
                             if pwned:
                                 newbreaches = [breach for breach in breaches if breach not in pwned[0]['Breaches']]
                             else:
                                 newbreaches = breaches
-                            ew.log(EventWriter.INFO, json.dumps(newbreaches))
+                            #ew.log(EventWriter.INFO, json.dumps(newbreaches))
                             if newbreaches:
                                 for breach in newbreaches:
                                     ew.write_event(
