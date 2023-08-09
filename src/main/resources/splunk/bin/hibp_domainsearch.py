@@ -71,13 +71,12 @@ class Input(Script):
         ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
         apikeys = [
-            x
+            x.clear_password
             for x in self.service.storage_passwords
             if x.realm == "hibp"
         ]
 
         for apikey in apikeys:
-            ew.log(EventWriter.DEBUG, apikey)
             with requests.Session() as s:
                 s.headers.update({"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"})
 
@@ -88,7 +87,6 @@ class Input(Script):
                         ew.log(EventWriter.ERROR, f"{url1} returned {r.status_code}")
                         continue
                     domains = r.json()
-                    
 
                     for d in domains:
                         ew.write_event(
@@ -96,8 +94,7 @@ class Input(Script):
                                 source=url1,
                                 sourcetype=f"hibp:domain",
                                 data=json.dumps(d),
-                                unbroken=False,
-                                done=False
+                                unbroken=False
                             )
                         )
 
@@ -109,7 +106,8 @@ class Input(Script):
                             with open(path, "r") as f:
                                 if latestbreach == f.read():
                                     #No new breaches for this domain
-                                    continue 
+                                    #continue
+                                    pass
                         except:
                             pass
 
@@ -125,8 +123,24 @@ class Input(Script):
                                 continue
                             emails = r.json()
 
-                            for alias in emails:
-                                for breach in emails[alias]:
+                        # Get all existing breaches for this domain
+                        collection = self.service.kvstore["hibp-pwned"]
+                        #ew.log(EventWriter.INFO, f"DOING QUERY FOR {domain}")
+                        #pwned = collection.data.query(query={"Domain": domain})
+                        #ew.log(EventWriter.INFO, json.dumps(pwned))
+
+                        for alias in emails:
+                            breaches = emails[alias]
+                            #Pull this users record from KVstore
+                            pwned = collection.data.query(query={"Alias": alias, "Domain": domain}, fields="Breaches", limit=1)
+                            ew.log(EventWriter.INFO, json.dumps(pwned))
+                            if pwned:
+                                newbreaches = [breach for breach in breaches if breach not in pwned[0]['Breaches']]
+                            else:
+                                newbreaches = breaches
+                            ew.log(EventWriter.INFO, json.dumps(newbreaches))
+                            if newbreaches:
+                                for breach in newbreaches:
                                     ew.write_event(
                                         Event(
                                             source=url2,
@@ -135,6 +149,11 @@ class Input(Script):
                                             unbroken=False,
                                         )
                                     )
+                                if pwned:
+                                    collection.data.update(pwned[0]['_key'],{"Breaches": breaches}) #"Alias": alias, "Domain": domain, 
+                                else:
+                                    collection.data.insert({"Alias": alias, "Domain": domain, "Breaches":  breaches})
+                                
 
                         with open(path, "w") as f:
                             f.write(latestbreach)
