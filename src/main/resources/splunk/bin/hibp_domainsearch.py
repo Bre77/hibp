@@ -47,7 +47,7 @@ class Input(Script):
                 writer = csv.writer(f)
                 writer.writerow(["Name","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
                 for breach in breaches:
-                    writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],",".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
+                    writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],"|".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
         except Exception as e:
             ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup. {str(e)}")
             return
@@ -70,12 +70,11 @@ class Input(Script):
         
         ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
-        #apikeys = [
-        #    x
-        #    for x in self.service.storage_passwords
-        #    if x.realm == "hibp"
-        #]
-        apikeys = ["d25c556dbd1645a6bfd45d438c91eac3"]
+        apikeys = [
+            x
+            for x in self.service.storage_passwords
+            if x.realm == "hibp"
+        ]
 
         for apikey in apikeys:
             ew.log(EventWriter.DEBUG, apikey)
