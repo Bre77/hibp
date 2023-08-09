@@ -38,7 +38,9 @@ const SubscriptionQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscription/status" }),
-        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x)))),
+    retry: (count, error) => error.statusCode === 429,
+    retryDelay: 6000,
 });
 
 const DomainQuery = (apikey) => ({
@@ -48,7 +50,9 @@ const DomainQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscribeddomains" }),
-        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x)))),
+    retry: (count, error) => error.statusCode === 429,
+    retryDelay: 6000,
 });
 
 const AddEntry = () => {
@@ -113,8 +117,8 @@ const Entries = () => {
 
 const ApiCard = ({ name, apikey }) => {
     const queryClient = useQueryClient();
-    const { data: subscription } = useQuery(SubscriptionQuery(apikey));
-    const { data: domains } = useQuery(DomainQuery(apikey));
+    const subscription = useQuery(SubscriptionQuery(apikey));
+    const domains = useQuery(DomainQuery(apikey));
 
     const removeApiKey = useMutation({
         mutationFn: () =>
@@ -124,19 +128,41 @@ const ApiCard = ({ name, apikey }) => {
             }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject())),
     });
 
+    if ((subscription.isError && subscription.error.statusCode === 401) || (domains.isError && domains.error.statusCode === 401)) {
+        return (
+            <Card style={{ maxWidth: "40em" }}>
+                <Card.Header title="API Key Invalid" />
+                <Card.Body>
+                    <P>
+                        This API Key has returned status 401, so it is invalid and should be removed.
+                        <br />
+                        Visit{" "}
+                        <Link to="https://haveibeenpwned.com/API/Key" openInNewContext>
+                            haveibeenpwned.com/API/Key
+                        </Link>{" "}
+                        to get a new API key.
+                    </P>
+                </Card.Body>
+                <Card.Footer showBorder={false}>
+                    <MutateButton mutation={removeApiKey} label="Remove" />
+                </Card.Footer>
+            </Card>
+        );
+    }
+
     return (
         <Card style={{ maxWidth: "40em" }}>
-            <Card.Header title={`${subscription?.SubscriptionName || "Loading"} subscription`} />
+            <Card.Header title={`${subscription.data?.SubscriptionName || "Loading"} subscription`} />
             <Card.Body>
-                <P>{subscription?.Description}</P>
-                <Table>
+                <P>{subscription.data?.Description}</P>
+                <Table stripeRows>
                     <Table.Head>
                         <Table.HeadCell>Domain</Table.HeadCell>
                         <Table.HeadCell>Pwned</Table.HeadCell>
                         <Table.HeadCell>Change</Table.HeadCell>
                     </Table.Head>
                     <Table.Body>
-                        {domains?.map((domain) => (
+                        {domains.data?.map((domain) => (
                             <Table.Row key={domain.DomainName}>
                                 <Table.Cell>{domain.DomainName}</Table.Cell>
                                 <Table.Cell>{domain.PwnCountExcludingSpamLists}</Table.Cell>
@@ -170,12 +196,25 @@ const Input = () => {
             })
                 .then(handleRemote)
                 .then((data) => queryClient.setQueryData(["input"], () => data))
-                .then(() =>
-                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-macros/hibp_index?output_mode=json`, {
-                        ...defaultFetchInit,
-                        method: "POST",
-                        body: makeBody({ definition: `index=${local}` }),
-                    })
+                /* Create a macro to reflect the index name */
+                .then(
+                    () =>
+                        local !== DISABLED &&
+                        fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-macros/hibp_index?output_mode=json`, {
+                            ...defaultFetchInit,
+                            method: "POST",
+                            body: makeBody({ definition: `index=${local}` }),
+                        })
+                )
+                /* Mark the app as setup */
+                .then(
+                    () =>
+                        local !== DISABLED &&
+                        fetch(`${splunkdPath}/servicesNS/nobody/hibp/apps/local/hibp?output_mode=json`, {
+                            ...defaultFetchInit,
+                            method: "POST",
+                            body: makeBody({ configured: true }),
+                        })
                 ),
     });
 

@@ -1,5 +1,5 @@
 <nav>
-  <view name="summary" />
-  <view name="setup" default="true"/>
+  <view name="summary" default="true" />
+  <view name="setup" />
   <a href="https://github.com/Bre77/hibp/issues" target="_blank">Get Support</a>
 </nav>

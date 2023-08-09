@@ -1,4 +1,0 @@
-<?xml version="1.0"?>
-<view template="hibp:/templates/setup.html" type="html">
-	<label>Setup</label>
-</view>
