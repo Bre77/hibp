@@ -139,8 +139,8 @@ const ApiCard = ({ name, apikey }) => {
                         {domains?.map((domain) => (
                             <Table.Row key={domain.DomainName}>
                                 <Table.Cell>{domain.DomainName}</Table.Cell>
-                                <Table.Cell>{domain.PwnCount}</Table.Cell>
-                                <Table.Cell>{domain.PwnCount - (domain.PwnCountExcludingSpamListsAtLastSubscriptionRenewal || 0)}</Table.Cell>
+                                <Table.Cell>{domain.PwnCountExcludingSpamLists}</Table.Cell>
+                                <Table.Cell>{domain.PwnCountExcludingSpamLists - (domain.PwnCountExcludingSpamListsAtLastSubscriptionRenewal || 0)}</Table.Cell>
                             </Table.Row>
                         ))}
                     </Table.Body>
@@ -169,7 +169,14 @@ const Input = () => {
                 body: makeBody(local === DISABLED ? { disabled: "true" } : { disabled: "false", index: local }),
             })
                 .then(handleRemote)
-                .then((data) => queryClient.setQueryData(["input"], () => data)),
+                .then((data) => queryClient.setQueryData(["input"], () => data))
+                .then(() =>
+                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-macros/hibp_index?output_mode=json`, {
+                        ...defaultFetchInit,
+                        method: "POST",
+                        body: makeBody({ definition: `index=${local}` }),
+                    })
+                ),
     });
 
     const handleLocal = (e, { value }) => {
