@@ -20,32 +20,34 @@ class Input(Script):
 
         return scheme
     
-    def update_lookup(self, ew):
-        # Request latest breach
-        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
-            if not r.ok:
-                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}")
-                return
-            latestbreach = r.json()['Name']
-
-        with open(os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach"), "a+") as f:
+    def update_lookup(self, ew, latestbreach):
+        # Check if latest recorded breach has changed
+        path = os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach"
+        with open(path), "r") as f:
             if latestbreach == f.read():
-                ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}")
+                ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
                 return
-            f.seek(0)
-            f.write(latestbreach)
-            f.truncate()
         
-        # Request all breaches
+        # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
             if not r.ok:
                 ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breaches returned {r.status_code}")
                 return
             breaches = r.json()
 
-        #Update Lookup
-        pass
+        #Update CSV Lookup
+        try:
+            with open(os.path.join(os.getenv('SPLUNK_HOME'),"etc","apps",self.APP,"lookups","hibp-breaches.csv"), "w") as f:
+                with csv.writer(f) as writer:
+                    csv_writer.writerow(["Name","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
+                    for breach in breaches:
+                        writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],",".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
+        except:
+            ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup")
+            return
 
+        with open(path, "r") as f:
+            f.write(latestbreach)
 
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
@@ -53,8 +55,17 @@ class Input(Script):
         input_name, input_items = inputs.inputs.popitem()
         kind, name = input_name.split("://")
 
-        self.update_lookup(ew)
+        # Request latest breach
+        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
+            if not r.ok:
+                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}")
+                return
+            latestbreach = r.json()['Name']
 
+        # Update CSV Lookup
+        self.update_lookup(ew, latestbreach)
+        
+        # Check API Key and domains
         apikeys = [
             x
             for x in self.service.storage_passwords
@@ -62,127 +73,46 @@ class Input(Script):
         ]
 
         for apikey in apikeys:
-            with requests.get("https://haveibeenpwned.com/api/v3/breacheddomain/{x.username}") as r:
-                if not r.ok:
-                    continue
+            with requests.Session() as s:
+                s.headers.update({"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"})
 
-        # Checkpoint
-        checkpointfile = os.path.join(
-            self._input_definition.metadata["checkpoint_dir"],
-            f"{name}.json",
-        )
-
-        try:
-            with open(checkpointfile, "r") as f:
-                prev_done = json.load(f)
-        except:
-            prev_done = []
-        next_done = []
-
-        # Get Data
-        with requests.session() as s:
-            s.headers.update({"Authorization": f"Token {api_key}"})
-            with s.get(
-                f"https://{server}.cymru.com/api/jobs?group_id={group_id}"
-            ) as jobs_response:
-                if not jobs_response.ok:
-                    ew.log(
-                        EventWriter.ERROR,
-                        f'Failed to get jobs from group_id={group_id} group_name={name} status=${job_response.status_code} response="{jobs_response.text}"',
-                    )
-                    return
-                jobs = jobs_response.json()["data"]
-
-                if len(jobs) == 0:
-                    ew.log(
-                        EventWriter.INFO,
-                        f"No jobs found in group_id={group_id} group_name={name}",
-                    )
-                    return
-
-                for job in jobs:
-                    job_id = job["id"]
-
-                    # Check Job
-                    if job["status"] != "Completed":
-                        ew.log(
-                            EventWriter.INFO,
-                            f"Skipping job={job_id} in group_id={group_id} group_name={name} because it hasnt finished",
-                        )
+                # Get all domains
+                with s.get("https://haveibeenpwned.com/api/v3/subscribeddomains") as r:
+                    if not r.ok:
+                        ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/subscribeddomains returned {r.status_code}")
                         continue
-                    next_done.append(job_id)
-                    if job_id in prev_done:
-                        ew.log(
-                            EventWriter.INFO,
-                            f"Skipping job={job_id} in group_id={group_id} group_name={name} since we have downloaded it already",
-                        )
-                        continue
-                    prev_done.append(job_id)
+                    domains = r.json()
 
-                    # Update Lookup
-                    try:
-                        lookup = f"{os.getenv('SPLUNK_HOME')}/etc/apps/TA-cyber_recon/lookups/{name}_iplist.csv"
-                        queries = json.loads(job["input"])["queries"]
-                        # Handle queries being a dict or list
-                        if type(queries) is dict:
-                            queries = queries.values()
-                        ips = set(
-                            itertools.chain.from_iterable(
-                                [
-                                    query.get("any_ip_addr", "").split(",")
-                                    for query in queries
-                                    if "any_ip_addr" in query
-                                ]
-                            )
-                        )
+                    for d in domains:
+                        domain = d["DomainName"]
+                        # Checkpoint
+                        path = os.path.join(self._input_definition.metadata["checkpoint_dir"],domain)
+                        try:
+                            with open(path, "r") as f:
+                                if latestbreach == f.read():
+                                    #No new breaches for this domain
+                                    continue 
+                        except:
+                            pass
 
-                        with open(
-                            lookup,
-                            "a",
-                        ) as f:
-                            for ip in ips:
-                                if len(ip.split(".")) != 4:
-                                    continue
-                                if "/" not in ip:
-                                    ip += "/32"
-                                f.write(
-                                    f'\n"{ip}","{job["name"]}","{name}","CIDR","",""'
-                                )
-                    except Exception as e:
-                        ew.log(
-                            EventWriter.ERROR,
-                            f'Failed to update lookup={lookup} for job={job_id} group_name={name} error="{e}"',
-                        )
+                        # Get all breached emails in domain
+                        with s.get(f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}") as r:
+                            if not r.ok:
+                                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain} returned {r.status_code}")
+                                continue
+                            emails = r.json()
 
-                    # Download Data
-                    with s.get(
-                        f"https://{server}.cymru.com/api/jobs/{job_id}?format=json",
-                        stream=True,
-                    ) as job_response:
-                        if not job_response.ok:
-                            ew.log(
-                                EventWriter.ERROR,
-                                f'Failed to get job={job_id} group_id={group_id} group_name={name} status=${job_response.status_code} response="{job_response.text}"',
-                            )
-                            continue
-                        for line in job_response.iter_lines():
-                            ew.write_event(
-                                Event(
-                                    index=name,
-                                    host=job["name"],
-                                    data=line.decode("utf-8"),
-                                    source=f"{server}.cymru.com/api/jobs/{job_id}",
-                                )
-                            )
+                            for alias in emails:
+                                for breach in emails[alias]
+                                    ew.write_event(
+                                        Event(
+                                            sourcetype=f"hibp:pwned",
+                                            data=f"{alias} {breach}",
+                                        )
+                                    )
 
-                    # Update checkpoint incase we crash
-                    with open(checkpointfile, "w") as f:
-                        json.dump(prev_done, f)
-
-        # Update checkpoint with only the jobs still in the API response
-        with open(checkpointfile, "w") as f:
-            json.dump(next_done, f)
-
+                        with open(path, "w") as f:
+                            f.write(latestbreach)
 
 if __name__ == "__main__":
     exitcode = Input().run(sys.argv)

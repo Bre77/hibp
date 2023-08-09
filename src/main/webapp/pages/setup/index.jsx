@@ -1,6 +1,7 @@
 import Button from "@splunk/react-ui/Button";
 import Card from "@splunk/react-ui/Card";
 import CardLayout from "@splunk/react-ui/CardLayout";
+import ComboBox from "@splunk/react-ui/ComboBox";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
 import DL from "@splunk/react-ui/DefinitionList";
 import Multiselect from "@splunk/react-ui/Multiselect";
@@ -30,6 +31,26 @@ const MutateButton = ({ mutation, label, disabled = false }) => (
     />
 );
 
+const SubscriptionQuery = (apikey) => ({
+    queryKey: ["subscription", apikey],
+    queryFn: () =>
+        fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+            ...defaultFetchInit,
+            method: "POST",
+            body: makeBody({ apikey, endpoint: "subscription/status" }),
+        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+});
+
+const DomainQuery = (apikey) => ({
+    queryKey: ["domains", apikey],
+    queryFn: () =>
+        fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+            ...defaultFetchInit,
+            method: "POST",
+            body: makeBody({ apikey, endpoint: "subscribeddomains" }),
+        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+});
+
 const AddEntry = () => {
     const queryClient = useQueryClient();
 
@@ -37,19 +58,13 @@ const AddEntry = () => {
 
     const addApiKey = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
-                ...defaultFetchInit,
-                method: "POST",
-                body: makeBody({ apikey: apiKey, endpoint: "subscription/status" }),
-            })
-                .then((res) => res.json().then((data) => (res.ok ? Promise.resolve() : Promise.reject(data.message))))
-                .then(() =>
-                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
-                        ...defaultFetchInit,
-                        method: "POST",
-                        body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
-                    }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject()))
-                ),
+            queryClient.fetchQuery(SubscriptionQuery(apiKey)).then(() =>
+                fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
+                    ...defaultFetchInit,
+                    method: "POST",
+                    body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
+                }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject()))
+            ),
     });
 
     const handleApiKey = (e, { value }) => {
@@ -72,38 +87,30 @@ const Entries = () => {
         queryKey: ["apikeys"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
-                res.ok ? res.json().then((x) => x.entry.map((y) => y.content.clear_password)) : Promise.reject()
+                res.ok ? res.json().then((x) => x.entry.map((y) => [y.name, y.content.clear_password])) : Promise.reject()
             ),
         placeholderData: [],
     });
     return (
         <CardLayout>
-            {data.map((apikey) => (
-                <ApiCard apikey={apikey} />
+            {data.map(([name, apikey]) => (
+                <ApiCard key={name} name={name} apikey={apikey} />
             ))}
         </CardLayout>
     );
 };
 
-const ApiCard = ({ apikey }) => {
-    console.log(apikey);
-    const { data: subscription } = useQuery({
-        queryKey: ["subscription", apikey],
-        queryFn: () =>
-            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
+const ApiCard = ({ name, apikey }) => {
+    const queryClient = useQueryClient();
+    const { data: subscription } = useQuery(SubscriptionQuery(apikey));
+    const { data: domains } = useQuery(DomainQuery(apikey));
+
+    const removeApiKey = useMutation({
+        mutationFn: () =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords/${name}?output_mode=json`, {
                 ...defaultFetchInit,
-                method: "POST",
-                body: makeBody({ apikey, endpoint: "subscription/status" }),
-            }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
-    });
-    const { data: domains } = useQuery({
-        queryKey: ["domains", apikey],
-        queryFn: () =>
-            fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
-                ...defaultFetchInit,
-                method: "POST",
-                body: makeBody({ apikey, endpoint: "subscribeddomains" }),
-            }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x.message)))),
+                method: "DELETE",
+            }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject())),
     });
 
     return (
@@ -129,9 +136,44 @@ const ApiCard = ({ apikey }) => {
                 </Table>
             </Card.Body>
             <Card.Footer showBorder={false}>
-                <Button label="Remove" />
+                <MutateButton mutation={removeApiKey} label="Remove" />
             </Card.Footer>
         </Card>
+    );
+};
+
+const DISABLED = "Disabled";
+const Input = () => {
+    const [index, setIndex] = useState();
+    const handleIndex = (e, { value }) => {
+        setIndex(value);
+        if (value === "Disabled") return;
+
+    };
+    const { data: input } = useQuery({
+        queryKey: ["input"],
+        queryFn: () => fetch(`${splunkdPath}/services/data/inputs/hibp?output_mode=json&search=datatype=event&search=isInternal=0`, defaultFetchInit).then((res) =>
+        res.ok ? res.json().then((x) => x.entry.map((y) => y.name)) : Promise.reject()
+    ),
+
+    const { data: indexes } = useQuery({
+        queryKey: ["indexes"],
+        queryFn: () =>
+            fetch(`${splunkdPath}/services/data/indexes?output_mode=json&search=datatype=event&search=isInternal=0`, defaultFetchInit).then((res) =>
+                res.ok ? res.json().then((x) => x.entry.map((y) => y.name)) : Promise.reject()
+            ),
+        placeholderData: [],
+    });
+    console.log(indexes);
+    return (
+        <ControlGroup label="Input and Index">
+            <ComboBox value={index} onChange={handleIndex}>
+                <ComboBox.Option value="Disabled" />
+                {indexes?.map((i) => (
+                    <ComboBox.Option key={i} value={i} />
+                ))}
+            </ComboBox>
+        </ControlGroup>
     );
 };
 
@@ -139,6 +181,7 @@ const Setup = () => {
     return (
         <>
             <AddEntry />
+            <Input />
             <Entries />
         </>
     );
