@@ -22,8 +22,8 @@ class Input(Script):
     
     def update_lookup(self, ew, latestbreach):
         # Check if latest recorded breach has changed
-        path = os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach"
-        with open(path), "r") as f:
+        path = os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach")
+        with open(path, "r") as f:
             if latestbreach == f.read():
                 ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
                 return
@@ -103,7 +103,7 @@ class Input(Script):
                             emails = r.json()
 
                             for alias in emails:
-                                for breach in emails[alias]
+                                for breach in emails[alias]:
                                     ew.write_event(
                                         Event(
                                             sourcetype=f"hibp:pwned",
