@@ -1,7 +1,21 @@
 {
-  "image": "ghcr.io/bre77/splunkui-devcontainer:main",
-  "postCreateCommand": "./.devcontainer/setup.sh",
-  "postStartCommand": "./.devcontainer/start.sh",
-  "postAttachCommand": "./.devcontainer/attach.sh",
-  "forwardPorts": [8000]
+    "image": "ghcr.io/bre77/splunkui-devcontainer:main",
+    "postCreateCommand": "./.devcontainer/setup.sh",
+    "postStartCommand": "./.devcontainer/start.sh",
+    "postAttachCommand": "./.devcontainer/attach.sh",
+	"forwardPorts": [
+		8000
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"esbenp.prettier-vscode",
+				"Splunk.splunk",
+				"ms-python.black-formatter",
+				"ms-python.isort",
+				"GitHub.copilot"
+			]
+		}
+	}
 }
