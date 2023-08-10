@@ -4,7 +4,7 @@
     "postStartCommand": "./.devcontainer/start.sh",
     "postAttachCommand": "./.devcontainer/attach.sh",
 	"forwardPorts": [
-		8000
+		8000,8089
 	],
 	"customizations": {
 		"vscode": {
