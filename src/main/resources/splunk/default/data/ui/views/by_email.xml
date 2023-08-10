@@ -1,4 +1,4 @@
-<form version="1.1">
+<form version="1.1" theme="dark">
   <label>By Email</label>
   <fieldset submitButton="false">
     <input type="dropdown" token="email">
@@ -18,11 +18,16 @@
       <single>
         <search>
           <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
-| stats count</query>
+| eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
+| timechart count
+| streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
         <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trendInterval">-1mon</option>
       </single>
     </panel>
     <panel>
@@ -30,7 +35,11 @@
       <single>
         <search>
           <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
-| stats dc(DataClasses)</query>
+| eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
+| mvexpand DataClasses
+| dedup DataClasses sortby _time
+| timechart dc(DataClasses) as count
+| streamstats sum(count) as count</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
@@ -43,9 +52,10 @@
     <panel>
       <table>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
+          <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$" 
 | table BreachDate Breach Title DataClasses 
-| eval DataClasses = mvjoin(DataClasses,", ")
+| eval DataClasses = mvjoin(DataClasses,", ") 
+| rename DataClasses as "Data Type" 
 | sort - BreachDate</query>
           <earliest>0</earliest>
           <latest></latest>

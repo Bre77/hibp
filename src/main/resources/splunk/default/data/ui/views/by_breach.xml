@@ -1,4 +1,4 @@
-<form version="1.1">
+<form version="1.1" theme="dark">
   <label>By Breach</label>
   <fieldset submitButton="false">
     <input type="dropdown" token="breach">

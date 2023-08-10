@@ -107,9 +107,11 @@ const Entries = () => {
         placeholderData: [],
     });
     return (
-        <CardLayout>
+        <CardLayout cardWidth={600} gutterSize={10}>
             {data.map(([name, apikey]) => (
-                <ApiCard key={name} name={name} apikey={apikey} />
+                <Card>
+                    <ApiCard key={name} name={name} apikey={apikey} />
+                </Card>
             ))}
         </CardLayout>
     );
@@ -130,7 +132,7 @@ const ApiCard = ({ name, apikey }) => {
 
     if ((subscription.isError && subscription.error.statusCode === 401) || (domains.isError && domains.error.statusCode === 401)) {
         return (
-            <Card style={{ maxWidth: "40em" }}>
+            <>
                 <Card.Header title="API Key Invalid" />
                 <Card.Body>
                     <P>
@@ -146,12 +148,12 @@ const ApiCard = ({ name, apikey }) => {
                 <Card.Footer showBorder={false}>
                     <MutateButton mutation={removeApiKey} label="Remove" />
                 </Card.Footer>
-            </Card>
+            </>
         );
     }
 
     return (
-        <Card style={{ maxWidth: "40em" }}>
+        <>
             <Card.Header title={`${subscription.data?.SubscriptionName || "Loading"} subscription`} />
             <Card.Body>
                 <P>{subscription.data?.Description}</P>
@@ -175,7 +177,7 @@ const ApiCard = ({ name, apikey }) => {
             <Card.Footer showBorder={false}>
                 <MutateButton mutation={removeApiKey} label="Remove" />
             </Card.Footer>
-        </Card>
+        </>
     );
 };
 
