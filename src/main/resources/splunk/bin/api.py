@@ -2,6 +2,7 @@ from splunk.persistconn.application import PersistentServerConnectionApplication
 import json
 import logging
 import requests
+import time
 
 class index(PersistentServerConnectionApplication):
     APP_NAME = "hibp"
@@ -12,6 +13,17 @@ class index(PersistentServerConnectionApplication):
             self.logger = logging.getLogger(f"splunk.appserver.{self.APP_NAME}")
 
         PersistentServerConnectionApplication.__init__(self)
+
+    def RetryRequest(self, url, headers):
+        while True:
+            with requests.get(url, headers=headers) as r:
+                if r.status_code == 429:
+                    wait = int(r.headers['retry-after'])+1
+                    if wait > 11:
+                        return r
+                else:
+                    return r
+            time.sleep(wait)
 
     def handle(self, in_string):
         args = json.loads(in_string)
@@ -31,8 +43,8 @@ class index(PersistentServerConnectionApplication):
             return {"payload": "No endpoint provided", "status": 400}
 
         try:
-            with requests.get(f"https://haveibeenpwned.com/api/v3/{ENDPOINT}", headers={"hibp-api-key": APIKEY, "user-agent": "HIBP-Splunk-App"}) as r:
-                return {"payload": r.text, "status": r.status_code}
+            r = self.RetryRequest(f"https://haveibeenpwned.com/api/v3/{ENDPOINT}", {"hibp-api-key": APIKEY, "user-agent": "HIBP-Splunk-App"})
+            return {"payload": r.text, "status": r.status_code}
         except Exception as e:
             return {"payload": str(e), "status": 500}
         

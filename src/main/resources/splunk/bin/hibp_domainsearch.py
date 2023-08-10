@@ -5,7 +5,7 @@ import time
 import requests
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from splunklib.modularinput import Script, Scheme, Argument, Event, EventWriter
+from splunklib.modularinput import Script, Scheme, Event, EventWriter
 
 SLEEP = 7
 
@@ -30,7 +30,7 @@ class Input(Script):
                     ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
                     return
         except:
-            ew.log(EventWriter.DEBUG, f"Latest breach has not ever been checked, will update breaches lookup")
+            ew.log(EventWriter.INFO, f"Latest breach has never been checked, will update breaches lookup")
         
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
@@ -38,17 +38,6 @@ class Input(Script):
                 ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breaches returned {r.status_code}")
                 return
             breaches = r.json()
-
-        # Update CSV Lookup
-        #try:
-        #    with open(os.path.join(os.getenv('SPLUNK_HOME'),"etc","apps",self.APP,"lookups","hibp-breaches.csv"), "w") as f:
-        #        writer = csv.writer(f)
-        #        writer.writerow(["Breach","Title","Domain","BreachDate","AddedDate","ModifiedDate","PwnCount","Description","LogoPath","DataClasses","IsVerified","IsFabricated","IsSensitive","IsRetired","IsSpamList","IsMalware"])
-        #        for breach in breaches:
-        #            writer.writerow([breach["Name"],breach["Title"],breach["Domain"],breach["BreachDate"],breach["AddedDate"],breach["ModifiedDate"],breach["PwnCount"],breach["Description"],breach["LogoPath"],"|".join(breach["DataClasses"]),breach["IsVerified"],breach["IsFabricated"],breach["IsSensitive"],breach["IsRetired"],breach["IsSpamList"],breach["IsMalware"]])
-        #except Exception as e:
-        #    ew.log(EventWriter.ERROR, f"Failed to update hibp-breaches.csv lookup. {str(e)}")
-        #    return
         
         # Update KVstore Collection
         collection = self.service.kvstore["hibp-breaches"]
