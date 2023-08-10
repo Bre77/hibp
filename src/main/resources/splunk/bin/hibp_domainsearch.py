@@ -1,10 +1,8 @@
 import os
 import sys
-import csv
 import json
 import time
 import requests
-from splunk.rest import simpleRequest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Argument, Event, EventWriter
@@ -16,10 +14,10 @@ class Input(Script):
 
     def get_scheme(self):
         scheme = Scheme("HIBP Domain Search")
-        scheme.description = "Retrieves Have I Been Pwned Domain Search data"
+        scheme.description = "Configure the Have I Been Pwned Domain Search input using the apps setup page at /app/hibp/setup."
         scheme.use_external_validation = False
         scheme.streaming_mode_xml = True
-        scheme.use_single_instance = True
+        scheme.use_single_instance = False
 
         return scheme
     
@@ -65,6 +63,19 @@ class Input(Script):
         with open(checkpointfile, "w") as f:
             f.write(latestbreach)
 
+    def RetryRequest(self, ew, session, url ):
+        while True:
+            with session.get(url) as r:
+                if r.status_code == 429:
+                    wait = int(r.headers['retry-after'])+1
+                    if wait > 11:
+                        ew.log(EventWriter.ERROR, f"Wait time {wait}s is too long, will not retry {url}")
+                        return r
+                else:
+                    return r
+            ew.log(EventWriter.INFO, f"Waiting {wait}s before retrying {url}")
+            time.sleep(wait)
+
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
 
@@ -92,83 +103,84 @@ class Input(Script):
 
                 # Get all domains
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
-                with s.get(url1) as r:
-                    if not r.ok:
-                        ew.log(EventWriter.ERROR, f"{url1} returned {r.status_code}")
-                        continue
-                    domains = r.json()
+                r1 = self.RetryRequest(ew, s, url1)
+                if not r1.ok:
+                    ew.log(EventWriter.ERROR, f"{url1} returned {r.status_code}")
+                    continue
+                domains = r1.json()
 
-                    for d in domains:
-                        ew.write_event(
-                            Event(
-                                source=url1,
-                                sourcetype=f"hibp:domain",
-                                data=json.dumps(d),
-                                unbroken=False
-                            )
+                for d in domains:
+                    ew.write_event(
+                        Event(
+                            source=url1,
+                            sourcetype=f"hibp:domain",
+                            data=json.dumps(d),
+                            unbroken=False
                         )
+                    )
 
-                        domain = d["DomainName"]
+                    domain = d["DomainName"]
 
-                        # Get Domains Checkpoint
-                        checkpointfile = os.path.join(self._input_definition.metadata["checkpoint_dir"],domain)
+                    # Get Domains Checkpoint
+                    checkpointfile = os.path.join(self._input_definition.metadata["checkpoint_dir"],domain)
+                    try:
+                        with open(checkpointfile, "r") as f:
+                            if latestbreach == f.read():
+                                #No new breaches for this domain
+                                continue
+                    except:
+                        pass
+
+                    # Sleep to avoid immediately rate limiting
+                    time.sleep(SLEEP)
+
+                    # Get all breached emails in domain
+                    url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
+                    r2 = self.RetryRequest(ew, s, url2)
+                    if r2.status_code == 404:
+                        domainsearch = {}
+                    elif not r2.ok:
+                        ew.log(EventWriter.ERROR, f"{url2} returned {r.status_code}")
+                        continue
+                    domainsearch = r2.json()
+
+                    ew.log(EventWriter.INFO, f"{domain} has a total of {len(domainsearch)} breached accounts")
+
+                    collection = self.service.kvstore["hibp-pwned"]
+
+                    for alias in domainsearch:
+                        breaches = domainsearch[alias]
+                        key = f"{alias}@{domain}"
+
+                        # Pull this emails record from KVstore
                         try:
-                            with open(checkpointfile, "r") as f:
-                                if latestbreach == f.read():
-                                    #No new breaches for this domain
-                                    continue
+                            pwned = collection.data.query_by_id(key)
                         except:
-                            pass
+                            pwned = None
 
-                        # Sleep to avoid rate limiting
-                        time.sleep(SLEEP)
+                        # Find only new breaches by comparing API with KVstore
+                        newbreaches = [breach for breach in breaches if breach not in pwned['Breaches']] if pwned else breaches
 
-                        # Get all breached emails in domain
-                        url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
-                        with s.get(url2) as r:
-                            if r.status_code == 404:
-                                ew.log(EventWriter.INFO, f"{domain} has no breached accounts")
-                                continue
-                            if not r.ok:
-                                ew.log(EventWriter.ERROR, f"{url2} returned {r.status_code}")
-                                continue
-                            domainsearch = r.json()
-
-                        collection = self.service.kvstore["hibp-pwned"]
-
-                        for alias in domainsearch:
-                            breaches = domainsearch[alias]
-                            key = f"{alias}@{domain}"
-
-                            # Pull this emails record from KVstore
-                            try:
-                                pwned = collection.data.query_by_id(key)
-                            except:
-                                pwned = None
-
-                            # Find only new breaches by comparing API with KVstore
-                            newbreaches = [breach for breach in breaches if breach not in pwned['Breaches']] if pwned else breaches
-
-                            if newbreaches:
-                                # Write event for each new breach
-                                for breach in newbreaches:
-                                    ew.write_event(
-                                        Event(
-                                            source=url2,
-                                            sourcetype=f"hibp:pwned",
-                                            data=f"{alias}@{domain} {breach}",
-                                            unbroken=False,
-                                        )
+                        if newbreaches:
+                            # Write event for each new breach
+                            for breach in newbreaches:
+                                ew.write_event(
+                                    Event(
+                                        source=url2,
+                                        sourcetype=f"hibp:pwned",
+                                        data=f"{alias}@{domain} {breach}",
+                                        unbroken=False,
                                     )
-                                # Update or insert KVstore for this email 
-                                if pwned:
-                                    collection.data.update(key,{"Breaches": breaches})
-                                else:
-                                    collection.data.insert({"_key": key, "Breaches":  breaches})
-                                
-                        # Record checkpoint for this domain
-                        with open(checkpointfile, "w") as f:
-                            f.write(latestbreach)
+                                )
+                            # Update or insert KVstore for this email 
+                            if pwned:
+                                collection.data.update(key,{"Breaches": breaches})
+                            else:
+                                collection.data.insert({"_key": key, "Breaches":  breaches})
+                            
+                    # Record checkpoint for this domain
+                    with open(checkpointfile, "w") as f:
+                        f.write(latestbreach)
 
 if __name__ == "__main__":
     exitcode = Input().run(sys.argv)
