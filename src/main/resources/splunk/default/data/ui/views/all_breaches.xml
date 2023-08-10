@@ -1,0 +1,44 @@
+<dashboard version="1.1">
+  <label>All Breaches</label>
+  <row>
+    <panel>
+      <chart>
+        <title>Last 90 Breaches by Pwn Count</title>
+        <search>
+          <query>| inputlookup hibp-breaches 
+| eval _time=strptime(BreachDate,"%Y-%m-%d") 
+| sort 90 - _time
+| timechart limit=90 useother=false span=1mon sum(PwnCount) as PwnCount by Title</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>All Breaches</title>
+        <search>
+          <query>| inputlookup hibp-breaches
+| table Name Title Domain Description AddedDate BreachDate PwnCount
+| eval Description=urldecode(Description)
+| sort - AddedDate</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">100</option>
+        <option name="drilldown">cell</option>
+        <drilldown>
+          <link target="_self">/app/hibp/by_breach?form.breach=$row.Name$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</dashboard>

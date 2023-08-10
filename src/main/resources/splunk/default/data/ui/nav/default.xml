@@ -1,5 +1,10 @@
 <nav>
   <view name="summary" default="true" />
+  <view name="by_breach" />
+  <view name="by_domain" />
+  <view name="by_email" />
+  <view name="heatmap" />
+  <view name="all_breaches" />
   <view name="setup" />
   <a href="https://github.com/Bre77/hibp/issues" target="_blank">Get Support</a>
 </nav>

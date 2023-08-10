@@ -1,79 +1,61 @@
-<dashboard version="1.1">
-  <label>Summary</label>
+<form version="1.1">
+  <label>By Domain</label>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="domain">
+      <label>Domain</label>
+      <fieldForLabel>DomainName</fieldForLabel>
+      <fieldForValue>DomainName</fieldForValue>
+      <search>
+        <query>`hibp_index` sourcetype="hibp:domain" 
+| dedup DomainName sortby DomainName 
+| table DomainName</query>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
+  </fieldset>
   <row>
-    <panel>
-      <title>Domains Monitored</title>
-      <single>
-        <search>
-          <query>`hibp_index` sourcetype="hibp:domain" 
-| dedup DomainName sortby _time 
-| timechart dc(DomainName) as count 
-| streamstats sum(count) as count</query>
-          <earliest>0</earliest>
-          <latest></latest>
-        </search>
-        <option name="drilldown">all</option>
-        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
-        <option name="refresh.display">progressbar</option>
-        <drilldown>
-          <link target="_blank">/app/hibp/by_domain</link>
-        </drilldown>
-      </single>
-    </panel>
     <panel>
       <title>Emails Pwned</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" 
-| dedup Email sortby _time 
-| timechart dc(Email) as count 
-| streamstats sum(count) as count</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | dedup Email sortby _time | timechart dc(Email) as count | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
-        <option name="drilldown">all</option>
-        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
-        <drilldown>
-          <link target="_blank">/app/hibp/heatmap</link>
-        </drilldown>
       </single>
     </panel>
     <panel>
       <title>Breaches Involved</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | dedup Breach sortby _time | timechart dc(Breach) as count | streamstats sum(count) as count</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | dedup Breach sortby _time | timechart dc(Breach) as count | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
-        <option name="drilldown">all</option>
+        <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
-        <drilldown>
-          <link target="_blank">/app/hibp/by_breach</link>
-        </drilldown>
       </single>
     </panel>
     <panel>
       <title>Total Instances</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | timechart count | streamstats sum(count) as count</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | timechart count | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
-        <option name="drilldown">all</option>
+        <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
-        <drilldown>
-          <link target="_blank">/app/hibp/heatmap</link>
-        </drilldown>
       </single>
     </panel>
     <panel>
       <title>Newest Breach Involved</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") | sort 1 -_time | table Breach</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") | sort 1 -_time | table Breach</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -87,7 +69,7 @@
       <chart>
         <title>Breach Timeline</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | eval _time=strptime(BreachDate,"%Y-%m-%d") | timechart limit=0 count by Title</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | eval _time=strptime(BreachDate,"%Y-%m-%d") | timechart limit=0 count by Title</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -98,33 +80,20 @@
         <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">none</option>
         <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
       </chart>
     </panel>
   </row>
   <row>
     <panel>
       <table>
-        <title>Top 10 Domains with Breaches</title>
+        <title>Top Emails Pwned</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | stats dc(Alias) as Emails dc(Breach) as Breaches count as Instances by Domain | sort 10 - Instances</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | top 0 Email</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
-        <option name="drilldown">cell</option>
-        <option name="refresh.display">progressbar</option>
-        <drilldown>
-          <link target="_blank">/app/hibp/by_domain?form.domain=$click.value$</link>
-        </drilldown>
-      </table>
-    </panel>
-    <panel>
-      <table>
-        <title>Top 10 Emails Pwned</title>
-        <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | top 10 Email</query>
-          <earliest>0</earliest>
-          <latest></latest>
-        </search>
+        <option name="count">50</option>
         <option name="drilldown">cell</option>
         <option name="refresh.display">progressbar</option>
         <format type="number" field="percent">
@@ -138,12 +107,13 @@
     </panel>
     <panel>
       <table>
-        <title>Top 10 Breaches</title>
+        <title>Top Breaches</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | eventstats dc(Email) as max | stats count values(max) as max by Breach | eval percent = count/max*100 | fields - max | sort 10 - count</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | eventstats dc(Email) as max | stats count values(max) as max by Breach | eval percent = count/max*100 | fields - max | sort 0 - count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
+        <option name="count">50</option>
         <option name="drilldown">cell</option>
         <option name="refresh.display">progressbar</option>
         <format type="number" field="percent">
@@ -157,12 +127,13 @@
     </panel>
     <panel>
       <table>
-        <title>Top 5 Data Types Pwned</title>
+        <title>Top Data Types Pwned</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" | top 10 DataClasses | rename DataClasses as "Data Type"</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" Domain=$domain$ | top 0 DataClasses | rename DataClasses as "Data Type"</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
+        <option name="count">50</option>
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
         <format type="number" field="percent">
@@ -172,4 +143,4 @@
       </table>
     </panel>
   </row>
-</dashboard>
+</form>

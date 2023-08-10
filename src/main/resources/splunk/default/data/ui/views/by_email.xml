@@ -1,0 +1,62 @@
+<form version="1.1">
+  <label>By Email</label>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="email">
+      <label>Email</label>
+      <fieldForLabel>Email</fieldForLabel>
+      <fieldForValue>Email</fieldForValue>
+      <search>
+        <query>`hibp_index` sourcetype="hibp:pwned" | stats count by Email | table Email</query>
+        <earliest>0</earliest>
+        <latest>now</latest>
+      </search>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Breaches</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
+| stats count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Data Types Pwned</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
+| stats dc(DataClasses)</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" Email="$email$"
+| table BreachDate Breach Title DataClasses 
+| eval DataClasses = mvjoin(DataClasses,", ")
+| sort - BreachDate</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="count">100</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/hibp/by_breach?form.breach=$row.Breach$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

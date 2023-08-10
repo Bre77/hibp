@@ -1,0 +1,25 @@
+<dashboard version="1.1">
+  <label>Heatmap</label>
+  <row>
+    <panel>
+      <title>Emails Per Breach and Domain</title>
+      <table>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" | chart dc(Alias) by Breach Domain limit=15</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">heatmap</option>
+        <option name="drilldown">cell</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="totalsRow">true</option>
+        <option name="wrap">true</option>
+        <drilldown>
+          <link target="_blank">search?q=%60hibp_index%60%20sourcetype%3D%22hibp%3Apwned%22%20Breach%3D$click.value$%20Domain%3D$click.name2$&amp;earliest=0&amp;latest=</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</dashboard>
