@@ -1,2 +1,3 @@
 [hibp_domainsearch://default]
-delay = <seconds>
+interval = <seconds>
+index = <string>
