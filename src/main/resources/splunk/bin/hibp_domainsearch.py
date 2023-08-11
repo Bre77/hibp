@@ -7,6 +7,7 @@ import requests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Event, EventWriter
 
+
 class Input(Script):
     APP = "hibp"
 
@@ -18,33 +19,44 @@ class Input(Script):
         scheme.use_single_instance = False
 
         return scheme
-    
+
     def update_lookup(self, ew, latestbreach):
         # Check if latest recorded breach has changed
-        checkpointfile = os.path.join(self._input_definition.metadata["checkpoint_dir"],"lastestbreach")
+        checkpointfile = os.path.join(
+            self._input_definition.metadata["checkpoint_dir"], "lastestbreach"
+        )
         try:
             with open(checkpointfile, "r") as f:
                 if latestbreach == f.read():
-                    ew.log(EventWriter.INFO, f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup")
+                    ew.log(
+                        EventWriter.INFO,
+                        f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup",
+                    )
                     return
         except:
-            ew.log(EventWriter.INFO, f"Latest breach has never been checked, will update breaches lookup")
-        
+            ew.log(
+                EventWriter.INFO,
+                f"Latest breach has never been checked, will update breaches lookup",
+            )
+
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
             if not r.ok:
-                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/breaches returned {r.status_code}")
+                ew.log(
+                    EventWriter.ERROR,
+                    f"https://haveibeenpwned.com/api/v3/breaches returned {r.status_code}",
+                )
                 return
             breaches = r.json()
-        
+
         # Update KVstore Collection
         collection = self.service.kvstore["hibp-breaches"]
         for breach in breaches:
-            key = breach['Name']
+            key = breach["Name"]
             try:
                 collection.data.update(key, breach)
             except:
-                breach['_key'] = key
+                breach["_key"] = key
                 collection.data.insert(breach)
 
         with open(checkpointfile, "w") as f:
@@ -56,13 +68,16 @@ class Input(Script):
         # Request latest breach
         with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
             if not r.ok:
-                ew.log(EventWriter.ERROR, f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}")
+                ew.log(
+                    EventWriter.ERROR,
+                    f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}",
+                )
                 return
-            latestbreach = r.json()['Name']
+            latestbreach = r.json()["Name"]
 
         # Update CSV Lookup
         self.update_lookup(ew, latestbreach)
-        
+
         ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
         apikeys = [
@@ -73,7 +88,9 @@ class Input(Script):
 
         for apikey in apikeys:
             with requests.Session() as s:
-                s.headers.update({"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"})
+                s.headers.update(
+                    {"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"}
+                )
 
                 # Get all domains
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
@@ -89,18 +106,20 @@ class Input(Script):
                             source=url1,
                             sourcetype=f"hibp:domain",
                             data=json.dumps(d),
-                            unbroken=False
+                            unbroken=False,
                         )
                     )
 
                     domain = d["DomainName"]
 
                     # Get Domains Checkpoint
-                    checkpointfile = os.path.join(self._input_definition.metadata["checkpoint_dir"],domain)
+                    checkpointfile = os.path.join(
+                        self._input_definition.metadata["checkpoint_dir"], domain
+                    )
                     try:
                         with open(checkpointfile, "r") as f:
                             if latestbreach == f.read():
-                                #No new breaches for this domain
+                                # No new breaches for this domain
                                 continue
                     except:
                         pass
@@ -111,12 +130,17 @@ class Input(Script):
                         if r2.status_code == 404:
                             domainsearch = {}
                         elif not r2.ok:
-                            ew.log(EventWriter.ERROR, f"{url2} returned {r2.status_code}")
+                            ew.log(
+                                EventWriter.ERROR, f"{url2} returned {r2.status_code}"
+                            )
                             continue
                         else:
                             domainsearch = r2.json()
 
-                    ew.log(EventWriter.INFO, f"{domain} has a total of {len(domainsearch)} breached accounts")
+                    ew.log(
+                        EventWriter.INFO,
+                        f"{domain} has a total of {len(domainsearch)} breached accounts",
+                    )
 
                     collection = self.service.kvstore["hibp-pwned"]
 
@@ -131,7 +155,15 @@ class Input(Script):
                             pwned = None
 
                         # Find only new breaches by comparing API with KVstore
-                        newbreaches = [breach for breach in breaches if breach not in pwned['Breaches']] if pwned else breaches
+                        newbreaches = (
+                            [
+                                breach
+                                for breach in breaches
+                                if breach not in pwned["Breaches"]
+                            ]
+                            if pwned
+                            else breaches
+                        )
 
                         if newbreaches:
                             # Write event for each new breach
@@ -144,15 +176,18 @@ class Input(Script):
                                         unbroken=False,
                                     )
                                 )
-                            # Update or insert KVstore for this email 
+                            # Update or insert KVstore for this email
                             if pwned:
-                                collection.data.update(key,{"Breaches": breaches})
+                                collection.data.update(key, {"Breaches": breaches})
                             else:
-                                collection.data.insert({"_key": key, "Breaches":  breaches})
-                            
+                                collection.data.insert(
+                                    {"_key": key, "Breaches": breaches}
+                                )
+
                     # Record checkpoint for this domain
                     with open(checkpointfile, "w") as f:
                         f.write(latestbreach)
+
 
 if __name__ == "__main__":
     exitcode = Input().run(sys.argv)
