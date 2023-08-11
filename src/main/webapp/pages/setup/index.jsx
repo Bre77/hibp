@@ -236,7 +236,7 @@ const Input = () => {
     });
 
     return (
-        <ControlGroup label="Splunk Index">
+        <ControlGroup label="Splunk Index" help="Create an event index with very long retention and set it here to enable the input." >
             <Text value={local} onChange={handleLocal} placeholder="Disabled" />
             <MutateButton
                 mutation={updateRemote}
@@ -249,13 +249,24 @@ const Input = () => {
     );
 };
 
+const Help = () => {
+    return (
+        <ControlGroup label="Help" help={<>This app was created by <Link to="https://bre77.au" openInNewContext>Brett Adams</Link>.</>}>
+            <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Internal Logs</Button>
+            <Button to="https://github.com/Bre77/hibp/issues" openInNewContext>Raise Issue</Button>
+            <Button to="https://app.slack.com/client/T047WPASC/D6PC5K1LN" openInNewContext>Slack</Button>
+            <Button to="mailto:splunkbase@ba.id.au" openInNewContext>Email</Button>
+        </ControlGroup>
+    )
+}
+
 const Setup = () => {
     return (
         <>
             <Input />
             <AddEntry />
+            <Help />
             <Entries />
-            <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Troubleshooting Logs</Button>
         </>
     );
 };
