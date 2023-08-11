@@ -233,7 +233,7 @@ const Help = () => {
     return (
         <ControlGroup
             labelWidth={WIDTH}
-            label="Help"
+            label="Support"
             help={
                 <>
                     This app was created by{" "}
@@ -248,7 +248,7 @@ const Help = () => {
             <Button to="https://github.com/Bre77/hibp/issues" openInNewContext>
                 Issues
             </Button>
-            <Button to="https://app.slack.com/client/T047WPASC/D6PC5K1LN" openInNewContext>
+            <Button to="slack://user?team=T047WPASC&id=U6MV3Q9UH" openInNewContext>
                 Slack
             </Button>
             <Button to="mailto:splunkbase@ba.id.au" openInNewContext>
