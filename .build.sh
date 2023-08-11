@@ -1,6 +1,8 @@
 #!/bin/bash
 cd "${0%/*}"
+pwd
 OUTPUT="${1:-hibp.spl}"
+echo $OUTPUT
 yarn install --non-interactive
 yarn run build
 chmod -R u=rwX,go= stage/*
