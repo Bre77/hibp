@@ -177,7 +177,15 @@ const Input = () => {
                 body: makeBody(local === DISABLED ? { disabled: "true" } : { disabled: "false", index: local }),
             })
                 .then(handleRemote)
+                /* Add the new input configuration to query cache */
                 .then((data) => queryClient.setQueryData(["input"], () => data))
+                /* Reload the input endpoint to reflect the change */
+                .then(() =>
+                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/_reload`, {
+                        ...defaultFetchInit,
+                        method: "POST",
+                    })
+                )
                 /* Create a macro to reflect the index name */
                 .then(
                     () =>
