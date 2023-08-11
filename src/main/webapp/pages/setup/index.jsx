@@ -1,11 +1,8 @@
 import Button from "@splunk/react-ui/Button";
 import Card from "@splunk/react-ui/Card";
 import CardLayout from "@splunk/react-ui/CardLayout";
-import ComboBox from "@splunk/react-ui/ComboBox";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
-import DL from "@splunk/react-ui/DefinitionList";
 import Link from "@splunk/react-ui/Link";
-import Multiselect from "@splunk/react-ui/Multiselect";
 import P from "@splunk/react-ui/Paragraph";
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
@@ -14,6 +11,8 @@ import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import Page from "../../shared/page";
+
+const WIDTH = 80;
 
 const makeBody = (data) => {
     return Object.entries(data).reduce((form, [key, value]) => {
@@ -79,7 +78,8 @@ const AddEntry = () => {
     return (
         <>
             <ControlGroup
-                label="Add HIBP API Key"
+                labelWidth={WIDTH}
+                label="Add API Key"
                 error={addApiKey.error}
                 help={
                     <>
@@ -94,26 +94,6 @@ const AddEntry = () => {
                 <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
             </ControlGroup>
         </>
-    );
-};
-
-const Entries = () => {
-    const { data } = useQuery({
-        queryKey: ["apikeys"],
-        queryFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
-                res.ok ? res.json().then((x) => x.entry.map((y) => [y.name, y.content.clear_password])) : Promise.reject()
-            ),
-        placeholderData: [],
-    });
-    return (
-        <CardLayout cardWidth={600} gutterSize={10}>
-            {data.map(([name, apikey]) => (
-                <Card>
-                    <ApiCard key={name} name={name} apikey={apikey} />
-                </Card>
-            ))}
-        </CardLayout>
     );
 };
 
@@ -236,7 +216,7 @@ const Input = () => {
     });
 
     return (
-        <ControlGroup label="Splunk Index" help="Create an event index with very long retention and set it here to enable the input." >
+        <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, set it here to enable.">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" />
             <MutateButton
                 mutation={updateRemote}
@@ -251,23 +231,58 @@ const Input = () => {
 
 const Help = () => {
     return (
-        <ControlGroup label="Help" help={<>This app was created by <Link to="https://bre77.au" openInNewContext>Brett Adams</Link>.</>}>
+        <ControlGroup
+            labelWidth={WIDTH}
+            label="Help"
+            help={
+                <>
+                    This app was created by{" "}
+                    <Link to="https://bre77.au" openInNewContext>
+                        Brett Adams
+                    </Link>
+                    .
+                </>
+            }
+        >
             <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Internal Logs</Button>
-            <Button to="https://github.com/Bre77/hibp/issues" openInNewContext>Raise Issue</Button>
-            <Button to="https://app.slack.com/client/T047WPASC/D6PC5K1LN" openInNewContext>Slack</Button>
-            <Button to="mailto:splunkbase@ba.id.au" openInNewContext>Email</Button>
+            <Button to="https://github.com/Bre77/hibp/issues" openInNewContext>
+                Issues
+            </Button>
+            <Button to="https://app.slack.com/client/T047WPASC/D6PC5K1LN" openInNewContext>
+                Slack
+            </Button>
+            <Button to="mailto:splunkbase@ba.id.au" openInNewContext>
+                Email
+            </Button>
         </ControlGroup>
-    )
-}
+    );
+};
 
 const Setup = () => {
+    const { data } = useQuery({
+        queryKey: ["apikeys"],
+        queryFn: () =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
+                res.ok ? res.json().then((x) => x.entry.map((y) => [y.name, y.content.clear_password])) : Promise.reject()
+            ),
+        placeholderData: [],
+    });
     return (
-        <>
-            <Input />
-            <AddEntry />
-            <Help />
-            <Entries />
-        </>
+        <CardLayout cardWidth={570} gutterSize={13}>
+            <Card>
+                <Card.Header title="Setup Have I Been Pwned Domain Search" />
+                <Card.Body>
+                    <Input />
+                    <AddEntry />
+                    <Help />
+                </Card.Body>
+            </Card>
+            {data.map(([name, apikey]) => (
+                <Card>
+                    <ApiCard key={name} name={name} apikey={apikey} />
+                </Card>
+            ))}
+        </CardLayout>
     );
 };
 
