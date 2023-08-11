@@ -1,14 +1,12 @@
 #!/bin/bash
 cd "${0%/*}"
-pwd
 OUTPUT="${1:-hibp.spl}"
-echo $OUTPUT
 yarn install --non-interactive
 yarn run build
 chmod -R u=rwX,go= stage/*
 chmod -R u-x+X stage/*
 chmod -R u=rwx,go= stage/bin/*
 mv stage hibp
-python3 -m pip install --upgrade -t hibp/lib -r hibp/lib/requirements.txt --no-dependencies
+/opt/binpython3 -m pip install --upgrade -t hibp/lib -r hibp/lib/requirements.txt --no-dependencies
 tar -cpzf $OUTPUT --exclude=hibp/.* --overwrite hibp 
 rm -rf hibp
