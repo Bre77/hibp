@@ -7,8 +7,6 @@ import requests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Event, EventWriter
 
-SLEEP = 7
-
 class Input(Script):
     APP = "hibp"
 
@@ -119,9 +117,6 @@ class Input(Script):
                                 continue
                     except:
                         pass
-
-                    # Sleep to avoid immediately rate limiting
-                    time.sleep(SLEEP)
 
                     # Get all breached emails in domain
                     url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
