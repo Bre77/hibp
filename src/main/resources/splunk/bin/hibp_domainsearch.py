@@ -92,7 +92,7 @@ class Input(Script):
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
                 r1 = self.RetryRequest(ew, s, url1)
                 if not r1.ok:
-                    ew.log(EventWriter.ERROR, f"{url1} returned {r.status_code}")
+                    ew.log(EventWriter.ERROR, f"{url1} returned {r1.status_code}")
                     continue
                 domains = r1.json()
 
