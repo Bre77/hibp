@@ -3,12 +3,12 @@
   <fieldset submitButton="false">
     <input type="dropdown" token="domain">
       <label>Domain</label>
-      <fieldForLabel>DomainName</fieldForLabel>
-      <fieldForValue>DomainName</fieldForValue>
+      <fieldForLabel>Domain</fieldForLabel>
+      <fieldForValue>Domain</fieldForValue>
       <search>
         <query>`hibp_index` sourcetype="hibp:domain" 
-| dedup DomainName sortby DomainName 
-| table DomainName</query>
+| dedup Domain sortby Domain 
+| table Domain</query>
         <earliest>-24h@h</earliest>
         <latest>now</latest>
       </search>

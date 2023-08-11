@@ -6,8 +6,8 @@
       <single>
         <search>
           <query>`hibp_index` sourcetype="hibp:domain" 
-| dedup DomainName sortby _time 
-| timechart dc(DomainName) as count 
+| dedup Domain sortby _time 
+| timechart dc(Domain) as count 
 | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>
