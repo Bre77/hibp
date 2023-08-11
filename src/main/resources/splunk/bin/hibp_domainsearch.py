@@ -124,7 +124,7 @@ class Input(Script):
                     if r2.status_code == 404:
                         domainsearch = {}
                     elif not r2.ok:
-                        ew.log(EventWriter.ERROR, f"{url2} returned {r.status_code}")
+                        ew.log(EventWriter.ERROR, f"{url2} returned {r2.status_code}")
                         continue
                     else:
                         domainsearch = r2.json()
