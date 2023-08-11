@@ -126,7 +126,8 @@ class Input(Script):
                     elif not r2.ok:
                         ew.log(EventWriter.ERROR, f"{url2} returned {r.status_code}")
                         continue
-                    domainsearch = r2.json()
+                    else:
+                        domainsearch = r2.json()
 
                     ew.log(EventWriter.INFO, f"{domain} has a total of {len(domainsearch)} breached accounts")
 
