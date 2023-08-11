@@ -50,19 +50,6 @@ class Input(Script):
         with open(checkpointfile, "w") as f:
             f.write(latestbreach)
 
-    #def RetryRequest(self, ew, session, url ):
-    #    while True:
-    #        with session.get(url) as r:
-    #            if r.status_code == 429:
-    #                wait = int(r.headers['retry-after'])+1
-    #                if wait > 11:
-    #                    ew.log(EventWriter.ERROR, f"Wait time {wait}s is too long, will not retry {url}")
-    #                    return r
-    #            else:
-    #                return r
-    #        ew.log(EventWriter.INFO, f"Waiting {wait}s before retrying {url}")
-    #        time.sleep(wait)
-
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
 
