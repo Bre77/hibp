@@ -104,8 +104,8 @@ class Input(Script):
                     ew.write_event(
                         Event(
                             source=url1,
-                            sourcetype=f"hibp:domain",
-                            data=json.dumps(d),
+                            sourcetype="hibp:domain",
+                            data=f"{d['DomainName']} {d['NextSubscriptionRenewal']} {d['PwnCount']} {d['PwnCountExcludingSpamLists']} {d['PwnCountExcludingSpamListsAtLastSubscriptionRenewal']}",
                             unbroken=False,
                         )
                     )
@@ -124,7 +124,7 @@ class Input(Script):
                     except:
                         pass
 
-                    # Get all breached emails in domain
+                    # Get all pwned emails in domain
                     url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
                     with s.get(url2) as r2:
                         if r2.status_code == 404:
@@ -139,7 +139,7 @@ class Input(Script):
 
                     ew.log(
                         EventWriter.INFO,
-                        f"{domain} has a total of {len(domainsearch)} breached accounts",
+                        f"{domain} has a total of {len(domainsearch)} pwned accounts",
                     )
 
                     collection = self.service.kvstore["hibp-pwned"]
