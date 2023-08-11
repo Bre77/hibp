@@ -50,18 +50,18 @@ class Input(Script):
         with open(checkpointfile, "w") as f:
             f.write(latestbreach)
 
-    def RetryRequest(self, ew, session, url ):
-        while True:
-            with session.get(url) as r:
-                if r.status_code == 429:
-                    wait = int(r.headers['retry-after'])+1
-                    if wait > 11:
-                        ew.log(EventWriter.ERROR, f"Wait time {wait}s is too long, will not retry {url}")
-                        return r
-                else:
-                    return r
-            ew.log(EventWriter.INFO, f"Waiting {wait}s before retrying {url}")
-            time.sleep(wait)
+    #def RetryRequest(self, ew, session, url ):
+    #    while True:
+    #        with session.get(url) as r:
+    #            if r.status_code == 429:
+    #                wait = int(r.headers['retry-after'])+1
+    #                if wait > 11:
+    #                    ew.log(EventWriter.ERROR, f"Wait time {wait}s is too long, will not retry {url}")
+    #                    return r
+    #            else:
+    #                return r
+    #        ew.log(EventWriter.INFO, f"Waiting {wait}s before retrying {url}")
+    #        time.sleep(wait)
 
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
@@ -90,11 +90,11 @@ class Input(Script):
 
                 # Get all domains
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
-                r1 = self.RetryRequest(ew, s, url1)
-                if not r1.ok:
-                    ew.log(EventWriter.ERROR, f"{url1} returned {r1.status_code}")
-                    continue
-                domains = r1.json()
+                with s.get(url1) as r1:
+                    if not r1.ok:
+                        ew.log(EventWriter.ERROR, f"{url1} returned {r1.status_code}")
+                        continue
+                    domains = r1.json()
 
                 for d in domains:
                     ew.write_event(
@@ -120,14 +120,14 @@ class Input(Script):
 
                     # Get all breached emails in domain
                     url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
-                    r2 = self.RetryRequest(ew, s, url2)
-                    if r2.status_code == 404:
-                        domainsearch = {}
-                    elif not r2.ok:
-                        ew.log(EventWriter.ERROR, f"{url2} returned {r2.status_code}")
-                        continue
-                    else:
-                        domainsearch = r2.json()
+                    with s.get(url2) as r2:
+                        if r2.status_code == 404:
+                            domainsearch = {}
+                        elif not r2.ok:
+                            ew.log(EventWriter.ERROR, f"{url2} returned {r2.status_code}")
+                            continue
+                        else:
+                            domainsearch = r2.json()
 
                     ew.log(EventWriter.INFO, f"{domain} has a total of {len(domainsearch)} breached accounts")
 
