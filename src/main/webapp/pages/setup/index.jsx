@@ -254,8 +254,8 @@ const Setup = () => {
         <>
             <Input />
             <AddEntry />
-
             <Entries />
+            <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Troubleshooting Logs</Button>
         </>
     );
 };
