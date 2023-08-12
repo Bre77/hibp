@@ -37,9 +37,7 @@ const SubscriptionQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscription/status" }),
-        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x)))),
-    retry: (count, error) => error.statusCode === 429,
-    retryDelay: 6000,
+        }).then((res) => (res.ok ? res.json().then((x) => Promise.resolve(x)) : res.text().then((x) => Promise.reject(x)))),
 });
 
 const DomainQuery = (apikey) => ({
@@ -49,9 +47,7 @@ const DomainQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscribeddomains" }),
-        }).then((res) => res.json().then((x) => (res.ok ? Promise.resolve(x) : Promise.reject(x)))),
-    retry: (count, error) => error.statusCode === 429,
-    retryDelay: 6000,
+        }).then((res) => (res.ok ? res.json().then((x) => Promise.resolve(x)) : res.text().then((x) => Promise.reject(x)))),
 });
 
 const AddEntry = () => {
@@ -169,11 +165,11 @@ const Input = () => {
 
     const updateRemote = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/services/hibp/input`, {
+            fetch(`${splunkdPath}/services/hibp/input?output_mode=json`, {
                 ...defaultFetchInit,
                 method: "POST",
                 body: makeBody({ index: local }),
-            }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then(Promise.reject))),
+            }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then((e) => Promise.reject(e)))),
     });
 
     const handleLocal = (e, { value }) => {
