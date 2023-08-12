@@ -167,25 +167,14 @@ const Input = () => {
     const queryClient = useQueryClient();
     const [local, setLocal] = useState(DISABLED);
 
-    const handleRemote = (res) => (res.ok ? res.json() : Promise.reject()).then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index));
-
     const updateRemote = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, {
+            fetch(`${splunkdPath}/services/hibp/input`, {
                 ...defaultFetchInit,
                 method: "POST",
-                body: makeBody(local === DISABLED ? { disabled: "true" } : { disabled: "false", index: local }),
+                body: makeBody({ index: local }),
             })
-                .then(handleRemote)
-                /* Add the new input configuration to query cache */
-                .then((data) => queryClient.setQueryData(["input"], () => data))
-                /* Reload the input endpoint to reflect the change */
-                .then(() =>
-                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/_reload`, {
-                        ...defaultFetchInit,
-                        method: "POST",
-                    })
-                )
+                .then((res) => (res.ok ? queryClient.invalidateQuery(["input"]) : res.text().then(Promise.reject)))
                 /* Create a macro to reflect the index name */
                 .then(
                     () =>
@@ -217,7 +206,7 @@ const Input = () => {
         queryKey: ["input"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, defaultFetchInit).then(
-                handleRemote
+                (res) => (res.ok ? res.json() : Promise.reject()).then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index))
             ),
         placeholderData: DISABLED,
         onSuccess: (data) => setLocal(data),
