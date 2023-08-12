@@ -159,7 +159,7 @@ const ApiCard = ({ name, apikey }) => {
 
 const DISABLED = "";
 
-const Input = () => {
+const Input = ({ enable }) => {
     const queryClient = useQueryClient();
     const [local, setLocal] = useState(DISABLED);
 
@@ -188,14 +188,18 @@ const Input = () => {
     });
 
     return (
-        <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, set it here to enable.">
-            <Text value={local} onChange={handleLocal} placeholder="Disabled" />
+        <ControlGroup
+            labelWidth={WIDTH}
+            label="Splunk Index"
+            help={enable ? "Create an event index with long retention, then set it here to enable." : "Add at least one API Key before enabling the input."}
+        >
+            <Text value={local} onChange={handleLocal} placeholder="Disabled" disabled={!enable} />
             <MutateButton
                 mutation={updateRemote}
                 label={
                     local === DISABLED ? (remote === DISABLED ? "Already Disabled" : "Disable Input") : remote === DISABLED ? "Save and Enable" : "Update Index"
                 }
-                disabled={local === remote}
+                disabled={local === remote || !enable}
             />
         </ControlGroup>
     );
@@ -244,8 +248,8 @@ const Setup = () => {
             <Card>
                 <Card.Header title="Setup Have I Been Pwned Domain Search" />
                 <Card.Body>
-                    <Input />
                     <AddEntry />
+                    <Input enable={data.length > 0} />
                     <Help />
                 </Card.Body>
             </Card>
