@@ -7,6 +7,6 @@ chmod -R u=rwX,go= stage/*
 chmod -R u-x+X stage/*
 chmod -R u=rwx,go= stage/bin/*
 mv stage hibp
-/opt/binpython3 -m pip install --upgrade -t hibp/lib -r hibp/lib/requirements.txt --no-dependencies
+python3 -m pip install --upgrade -t hibp/lib -r hibp/lib/requirements.txt --no-dependencies
 tar -cpzf $OUTPUT --exclude=hibp/.* --overwrite hibp 
 rm -rf hibp
