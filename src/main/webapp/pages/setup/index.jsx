@@ -173,28 +173,7 @@ const Input = () => {
                 ...defaultFetchInit,
                 method: "POST",
                 body: makeBody({ index: local }),
-            })
-                .then((res) => (res.ok ? queryClient.invalidateQuery(["input"]) : res.text().then(Promise.reject)))
-                /* Create a macro to reflect the index name */
-                .then(
-                    () =>
-                        local !== DISABLED &&
-                        fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-macros/hibp_index?output_mode=json`, {
-                            ...defaultFetchInit,
-                            method: "POST",
-                            body: makeBody({ definition: `index=${local}` }),
-                        })
-                )
-                /* Mark the app as setup */
-                .then(
-                    () =>
-                        local !== DISABLED &&
-                        fetch(`${splunkdPath}/servicesNS/nobody/hibp/apps/local/hibp?output_mode=json`, {
-                            ...defaultFetchInit,
-                            method: "POST",
-                            body: makeBody({ configured: true }),
-                        })
-                ),
+            }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then(Promise.reject))),
     });
 
     const handleLocal = (e, { value }) => {
@@ -275,7 +254,7 @@ const Setup = () => {
                 </Card.Body>
             </Card>
             {data.map(([name, apikey]) => (
-                <Card>
+                <Card key={name}>
                     <ApiCard key={name} name={name} apikey={apikey} />
                 </Card>
             ))}
