@@ -1,7 +1,6 @@
 from splunk.persistconn.application import PersistentServerConnectionApplication
 import json
 import logging
-import time
 from splunk.rest import simpleRequest
 
 class index(PersistentServerConnectionApplication):

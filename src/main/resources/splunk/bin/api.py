@@ -2,7 +2,6 @@ from splunk.persistconn.application import PersistentServerConnectionApplication
 import json
 import logging
 import requests
-import time
 
 class index(PersistentServerConnectionApplication):
     APP_NAME = "hibp"
