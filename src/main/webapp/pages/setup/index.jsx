@@ -30,6 +30,8 @@ const MutateButton = ({ mutation, label, disabled = false }) => (
     />
 );
 
+const HandleHIBP = (res) => (res.ok ? res.json().then((data) => Promise.resolve(data)) : res.text().then((error) => Promise.reject(error)));
+
 const SubscriptionQuery = (apikey) => ({
     queryKey: ["subscription", apikey],
     queryFn: () =>
@@ -37,7 +39,7 @@ const SubscriptionQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscription/status" }),
-        }).then((res) => (res.ok ? res.json().then((x) => Promise.resolve(x)) : res.text().then((x) => Promise.reject(x)))),
+        }).then(HandleHIBP),
 });
 
 const DomainQuery = (apikey) => ({
@@ -47,7 +49,7 @@ const DomainQuery = (apikey) => ({
             ...defaultFetchInit,
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscribeddomains" }),
-        }).then((res) => (res.ok ? res.json().then((x) => Promise.resolve(x)) : res.text().then((x) => Promise.reject(x)))),
+        }).then(HandleHIBP),
 });
 
 const AddEntry = () => {
@@ -62,7 +64,7 @@ const AddEntry = () => {
                     ...defaultFetchInit,
                     method: "POST",
                     body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
-                }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject()))
+                }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject(res.statusCode)))
             ),
     });
 
@@ -103,7 +105,7 @@ const ApiCard = ({ name, apikey }) => {
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords/${name}?output_mode=json`, {
                 ...defaultFetchInit,
                 method: "DELETE",
-            }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject())),
+            }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject(res.statusCode))),
     });
 
     if ((subscription.isError && subscription.error.statusCode === 401) || (domains.isError && domains.error.statusCode === 401)) {
@@ -118,7 +120,7 @@ const ApiCard = ({ name, apikey }) => {
                         <Link to="https://haveibeenpwned.com/API/Key" openInNewContext>
                             haveibeenpwned.com/API/Key
                         </Link>{" "}
-                        to get a new API key.
+                        to generate a new API key.
                     </P>
                 </Card.Body>
                 <Card.Footer showBorder={false}>
@@ -159,6 +161,10 @@ const ApiCard = ({ name, apikey }) => {
 
 const DISABLED = "";
 
+const INPUT_LABELS = [
+    ["Already Disabled", "Disable Input"],
+    ["Save and Enable", "Update Index"],
+];
 const Input = () => {
     const queryClient = useQueryClient();
     const [local, setLocal] = useState(DISABLED);
@@ -169,7 +175,7 @@ const Input = () => {
                 ...defaultFetchInit,
                 method: "POST",
                 body: makeBody({ index: local }),
-            }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then((e) => Promise.reject(e)))),
+            }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then((error) => Promise.reject(error)))),
     });
 
     const handleLocal = (e, { value }) => {
@@ -181,7 +187,8 @@ const Input = () => {
         queryKey: ["input"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, defaultFetchInit).then(
-                (res) => (res.ok ? res.json() : Promise.reject()).then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index))
+                (res) =>
+                    res.ok ? res.json().then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index)) : Promise.reject(res.statusCode)
             ),
         placeholderData: DISABLED,
         onSuccess: (data) => setLocal(data),
@@ -190,13 +197,7 @@ const Input = () => {
     return (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" />
-            <MutateButton
-                mutation={updateRemote}
-                label={
-                    local === DISABLED ? (remote === DISABLED ? "Already Disabled" : "Disable Input") : remote === DISABLED ? "Save and Enable" : "Update Index"
-                }
-                disabled={local === remote}
-            />
+            <MutateButton mutation={updateRemote} label={INPUT_LABELS[local === DISABLED][remote === DISABLED]} disabled={local === remote} />
         </ControlGroup>
     );
 };
@@ -235,7 +236,9 @@ const Setup = () => {
         queryKey: ["apikeys"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
-                res.ok ? res.json().then((x) => x.entry.map((y) => [y.name, y.content.clear_password])) : Promise.reject()
+                res.ok
+                    ? res.json().then(({ entry }) => entry.map((password) => [password.name, password.content.clear_password]))
+                    : Promise.reject(res.statusCode)
             ),
         placeholderData: [],
     });

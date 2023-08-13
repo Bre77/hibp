@@ -35,8 +35,8 @@ const queryClient = new QueryClient({
 });
 
 export default (child) =>
-    Promise.all([getUserTheme()])
-        .then(([theme]) =>
+    getUserTheme()
+        .then((theme) =>
             layout(
                 <QueryClientProvider client={queryClient}>
                     <GlobalStyle />
@@ -46,8 +46,8 @@ export default (child) =>
                 { theme }
             )
         )
-        .catch((e) => {
+        .catch((error) => {
             const errorEl = document.createElement("span");
-            errorEl.innerHTML = e;
+            errorEl.innerHTML = error;
             document.body.appendChild(errorEl);
         });
