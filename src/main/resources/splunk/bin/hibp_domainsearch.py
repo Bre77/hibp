@@ -1,6 +1,8 @@
 import os
 import sys
 import requests
+import html
+import re
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Event, EventWriter
@@ -48,8 +50,12 @@ class Input(Script):
             breaches = r.json()
 
         # Update KVstore Collection
+        NOTAG = re.compile("<.*?>")
         collection = self.service.kvstore["hibp-breaches"]
         for breach in breaches:
+            breach["Description"] = re.sub(
+                NOTAG, "", html.unescape(breach["Description"])
+            )
             key = breach["Name"]
             try:
                 collection.data.update(key, breach)
