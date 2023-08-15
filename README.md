@@ -31,8 +31,8 @@ This app requires the KV Store for both search time lookups and checkpoints.
 
 ## Credits
 
-This app was created and is supported by Brett Adams ([https://github.com/Bre77](@Bre77)).
+This app was created and is supported by Brett Adams ([@Bre77](https://github.com/Bre77)).
 
-Special Thanks to James Hodgkinson ([https://github.com/yaleman](@yaleman)) for providing access to his domain for development and testing.
+Special Thanks to James Hodgkinson ([@yaleman](https://github.com/yaleman)) for providing access to his domain for development and testing.
 
-Special Thanks to Troy Hunt ([https://github.com/troyhunt](@troyhunt)) for creating Have I Been Pwned, the Domain Search API, and collaborating with me on the new API endpoints and rating limiting. You can read more about this at [www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration](https://www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration?ref=HIBP-Splunk-App)
+Special Thanks to Troy Hunt ([@troyhunt](https://github.com/troyhunt)) for creating Have I Been Pwned, the Domain Search API, and collaborating with me on the new API endpoints and rating limiting. You can read more about this at [www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration](https://www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration?ref=HIBP-Splunk-App)
