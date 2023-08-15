@@ -108,7 +108,7 @@
         <search>
           <query>`hibp_index` sourcetype="hibp:pwned" 
 | eval _time=strptime(BreachDate,"%Y-%m-%d") 
-| timechart limit=0 count by Title</query>
+| timechart limit=90 useother=true count by Title</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
