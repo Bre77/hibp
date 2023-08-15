@@ -197,7 +197,7 @@ const Input = () => {
     return (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" />
-            <MutateButton mutation={updateRemote} label={INPUT_LABELS[local === DISABLED][remote === DISABLED]} disabled={local === remote} />
+            <MutateButton mutation={updateRemote} label={INPUT_LABELS[+(local === DISABLED)][+(remote === DISABLED)]} disabled={local === remote} />
         </ControlGroup>
     );
 };
