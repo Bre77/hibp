@@ -51,7 +51,7 @@
           <query>`hibp_index` sourcetype="hibp:pwned" 
 | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
 | dedup Breach sortby _time 
-| timechart dc(Breach) as count 
+| timechart count 
 | streamstats sum(count) as count</query>
           <earliest>0</earliest>
           <latest></latest>

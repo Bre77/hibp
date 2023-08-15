@@ -27,13 +27,13 @@
         <title>All Breaches</title>
         <search>
           <query>| inputlookup hibp-breaches
+| eval AddedDate=strftime(strptime(AddedDate,"%Y-%m-%dT%H:%M:%S%Z"),"%Y-%m-%d")
 | table Name Title Domain Description AddedDate BreachDate PwnCount
-| eval Description=urldecode(Description)
 | sort - AddedDate</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
-        <option name="count">100</option>
+        <option name="count">20</option>
         <option name="drilldown">cell</option>
         <drilldown>
           <link target="_self">/app/hibp/by_breach?form.breach=$row.Name$</link>

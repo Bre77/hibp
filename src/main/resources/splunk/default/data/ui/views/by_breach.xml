@@ -7,7 +7,9 @@
       <fieldForValue>Breach</fieldForValue>
       <search>
         <query>`hibp_index` sourcetype="hibp:pwned" | stats count by Breach Title 
-| eval Title=Title." (".count." pwned)"</query>
+| sort 0 Title
+| eval Title=Title." (".count." pwned)"
+</query>
         <earliest>0</earliest>
         <latest>now</latest>
       </search>
@@ -80,6 +82,8 @@
       <table>
         <search>
           <query>| inputlookup hibp-breaches where Name=$breach$
+| eval AddedDate=strftime(strptime(AddedDate,"%Y-%m-%dT%H:%M:%S%Z"),"%Y-%m-%d")
+| eval ModifiedDate=strftime(strptime(ModifiedDate,"%Y-%m-%dT%H:%M:%S%Z"),"%Y-%m-%d")
 | table Domain BreachDate AddedDate ModifiedDate PwnCount DataClasses</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
