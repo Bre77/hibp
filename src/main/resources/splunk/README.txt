@@ -35,4 +35,4 @@ This app was created and is supported by Brett Adams (@Bre77).
 
 Special Thanks to James Hodgkinson (@yaleman) for providing access to his domain for development and testing.
 
-Special Thanks to Troy Hunt (@troyhunt) for creating Have I Been Pwned, the Domain Search API, and collaborating with me on the new API endpoints and rating limiting. You can read more about this at [www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration](https://www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration?ref=HIBP-Splunk-App)
+Special Thanks to Troy Hunt (@troyhunt) for creating Have I Been Pwned, the Domain Search API, and collaborating with me on the new API endpoints and rating limiting. You can read more about this at https://www.troyhunt.com/all-new-have-i-been-pwned-domain-search-apis-and-splunk-integration?ref=HIBP-Splunk-App
