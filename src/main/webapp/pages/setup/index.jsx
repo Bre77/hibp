@@ -82,7 +82,7 @@ const AddEntry = () => {
                 help={
                     <>
                         Get from{" "}
-                        <Link to="https://haveibeenpwned.com/API/Key" openInNewContext>
+                        <Link to="https://haveibeenpwned.com/API/Key?ref=HIBP-Splunk-App" openInNewContext>
                             haveibeenpwned.com/API/Key
                         </Link>
                     </>
@@ -117,7 +117,7 @@ const ApiCard = ({ name, apikey }) => {
                         This API Key has returned status 401, so it is invalid and should be removed.
                         <br />
                         Visit{" "}
-                        <Link to="https://haveibeenpwned.com/API/Key" openInNewContext>
+                        <Link to="https://haveibeenpwned.com/API/Key?ref=HIBP-Splunk-App" openInNewContext>
                             haveibeenpwned.com/API/Key
                         </Link>{" "}
                         to generate a new API key.
@@ -210,7 +210,7 @@ const Help = () => {
             help={
                 <>
                     This app was created by{" "}
-                    <Link to="https://bre77.au" openInNewContext>
+                    <Link to="https://bre77.au?ref=HIBP-Splunk-App" openInNewContext>
                         Brett Adams
                     </Link>
                     .
