@@ -7,9 +7,7 @@
       <fieldForValue>Breach</fieldForValue>
       <search>
         <query>`hibp_index` sourcetype="hibp:pwned" | stats count by Breach Title 
-| sort 0 Title
-| eval Title=Title." (".count." pwned)"
-</query>
+| eval Title=Title." (".count." pwned)"</query>
         <earliest>0</earliest>
         <latest>now</latest>
       </search>
@@ -82,9 +80,10 @@
       <table>
         <search>
           <query>| inputlookup hibp-breaches where Name=$breach$
-| eval AddedDate=strftime(strptime(AddedDate,"%Y-%m-%dT%H:%M:%S%Z"),"%Y-%m-%d")
-| eval ModifiedDate=strftime(strptime(ModifiedDate,"%Y-%m-%dT%H:%M:%S%Z"),"%Y-%m-%d")
-| table Domain BreachDate AddedDate ModifiedDate PwnCount DataClasses</query>
+| foreach Is* [| eval Flags = if('&lt;&lt;FIELD&gt;&gt;'=1,mvappend(Flags,"&lt;&lt;FIELD&gt;&gt;"),Flags)]
+| eval DataClasses = mvjoin(DataClasses,", "), Flags = mvjoin(Flags,", ")
+| table Domain BreachDate AddedDate ModifiedDate PwnCount Flags DataClasses
+| rename Domain as BreachDomain</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
@@ -94,26 +93,6 @@
           <option name="precision">0</option>
         </format>
       </table>
-    </panel>
-    <panel>
-      <single>
-        <search>
-          <query>| inputlookup hibp-breaches where Name=$breach$
-| table Is*</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-        </search>
-        <option name="colorMode">block</option>
-        <option name="drilldown">none</option>
-        <option name="height">119</option>
-        <option name="rangeColors">["0x555","0x1182f3","0xdc4e41"]</option>
-        <option name="rangeValues">[0,1]</option>
-        <option name="refresh.display">progressbar</option>
-        <option name="trellis.enabled">1</option>
-        <option name="trellis.size">medium</option>
-        <option name="useColors">1</option>
-        <option name="useThousandSeparators">0</option>
-      </single>
     </panel>
   </row>
   <row>
