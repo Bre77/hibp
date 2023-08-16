@@ -124,6 +124,10 @@ class Input(Script):
                         with open(checkpointfile, "r") as f:
                             if latestbreach == f.read():
                                 # No new breaches for this domain
+                                ew.log(
+                                    EventWriter.INFO,
+                                    f"Latest breach for {domain} hasnt changed from {latestbreach}, will not query HIBP",
+                                )
                                 continue
                     except:
                         pass
