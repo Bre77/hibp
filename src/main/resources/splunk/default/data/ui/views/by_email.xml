@@ -40,8 +40,8 @@
 | dedup DataClasses sortby _time
 | timechart dc(DataClasses) as count
 | streamstats sum(count) as count</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
+          <earliest>0</earliest>
+          <latest></latest>
         </search>
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
