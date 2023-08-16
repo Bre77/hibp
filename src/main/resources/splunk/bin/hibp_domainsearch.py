@@ -110,7 +110,6 @@ class Input(Script):
                             source=url1,
                             sourcetype="hibp:domain",
                             data=f"{d['DomainName']} {d['NextSubscriptionRenewal']} {d['PwnCount']} {d['PwnCountExcludingSpamLists']} {d['PwnCountExcludingSpamListsAtLastSubscriptionRenewal']}",
-                            unbroken=False,
                         )
                     )
 
@@ -181,7 +180,6 @@ class Input(Script):
                                         source=url2,
                                         sourcetype=f"hibp:pwned",
                                         data=f"{alias}@{domain} {breach}",
-                                        unbroken=False,
                                     )
                                 )
                             # Update or insert KVstore for this email
@@ -195,6 +193,7 @@ class Input(Script):
                     # Record checkpoint for this domain
                     with open(checkpointfile, "w") as f:
                         f.write(latestbreach)
+        ew.close()
 
 
 if __name__ == "__main__":
