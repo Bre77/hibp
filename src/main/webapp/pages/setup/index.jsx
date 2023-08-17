@@ -30,7 +30,7 @@ const MutateButton = ({ mutation, label, disabled = false }) => (
     />
 );
 
-const HandleHIBP = (res) => (res.ok ? res.json().then((data) => Promise.resolve(data)) : res.text().then((error) => Promise.reject(error)));
+const HandleHIBP = (res) => (res.ok ? res.json().then((data) => Promise.resolve(data)) : Promise.reject(res.status));
 
 const SubscriptionQuery = (apikey) => ({
     queryKey: ["subscription", apikey],
@@ -52,6 +52,13 @@ const DomainQuery = (apikey) => ({
         }).then(HandleHIBP),
 });
 
+const ERRORS = {
+    400: "Bad request: contact splunkbase@ba.id.au",
+    401: "Unauthorised: API key is not valid",
+    429: "Too many requests: try again in 10 minutes",
+    503: "Service unavailable: try again later",
+};
+
 const AddEntry = () => {
     const queryClient = useQueryClient();
 
@@ -59,12 +66,14 @@ const AddEntry = () => {
 
     const addApiKey = useMutation({
         mutationFn: () =>
-            queryClient.fetchQuery(SubscriptionQuery(apiKey)).then(() =>
-                fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
-                    ...defaultFetchInit,
-                    method: "POST",
-                    body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
-                }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject(res.statusCode)))
+            queryClient.fetchQuery(SubscriptionQuery(apiKey)).then(
+                () =>
+                    fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
+                        ...defaultFetchInit,
+                        method: "POST",
+                        body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
+                    }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject(res.statusText))),
+                (status) => Promise.reject(ERRORS?.[status] || `API returned with status ${status}`)
             ),
     });
 
@@ -108,7 +117,7 @@ const ApiCard = ({ name, apikey }) => {
             }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject(res.statusCode))),
     });
 
-    if ((subscription.isError && subscription.error.statusCode === 401) || (domains.isError && domains.error.statusCode === 401)) {
+    if ((subscription.isError && subscription.error === 401) || (domains.isError && domains.error === 401)) {
         return (
             <>
                 <Card.Header title="API Key Invalid" />
@@ -121,6 +130,23 @@ const ApiCard = ({ name, apikey }) => {
                             haveibeenpwned.com/API/Key
                         </Link>{" "}
                         to generate a new API key.
+                    </P>
+                </Card.Body>
+                <Card.Footer showBorder={false}>
+                    <MutateButton mutation={removeApiKey} label="Remove" />
+                </Card.Footer>
+            </>
+        );
+    }
+
+    if ((subscription.isError && subscription.error === 429) || (domains.isError && domains.error === 429)) {
+        return (
+            <>
+                <Card.Header title="API Key Rate Limit Exceeded" />
+                <Card.Body>
+                    <P>
+                        This page retrieves the latest data from Have I Been Pwned, however there is a rate limit to prevent these endpoints being used too
+                        frequently. Try again in 10 minutes.
                     </P>
                 </Card.Body>
                 <Card.Footer showBorder={false}>
