@@ -100,6 +100,11 @@ class Input(Script):
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
                 with s.get(url1) as r1:
                     if not r1.ok:
+                        if r1.status_code == 401:
+                            self.service.messages.create(
+                                name="HIBP_APIKEY_401",
+                                value="A Have I Been Pwned API key is no longer valid. [[/app/hibp/setup|Go to setup page]]",
+                            )
                         ew.log(EventWriter.ERROR, f"{url1} returned {r1.status_code}")
                         continue
                     domains = r1.json()
