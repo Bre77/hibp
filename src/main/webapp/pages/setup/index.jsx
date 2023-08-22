@@ -188,8 +188,8 @@ const ApiCard = ({ name, apikey }) => {
 const DISABLED = "";
 
 const INPUT_LABELS = [
-    ["Already Disabled", "Disable Input"],
-    ["Save and Enable", "Update Index"],
+    ["Update Index", "Save and Enable"],
+    ["Disable Input", "Already Disabled"],
 ];
 const Input = () => {
     const queryClient = useQueryClient();
@@ -219,6 +219,7 @@ const Input = () => {
         placeholderData: DISABLED,
         onSuccess: (data) => setLocal(data),
     });
+    console.log(local, remote, +(local === DISABLED), +(remote === DISABLED));
 
     return (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
