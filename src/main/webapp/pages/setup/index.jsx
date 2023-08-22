@@ -219,7 +219,6 @@ const Input = () => {
         placeholderData: DISABLED,
         onSuccess: (data) => setLocal(data),
     });
-    console.log(local, remote, +(local === DISABLED), +(remote === DISABLED));
 
     return (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
