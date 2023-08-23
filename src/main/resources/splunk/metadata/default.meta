@@ -1,7 +1,6 @@
 []
 access = read : [ * ], write : [ admin, sc_admin ]
 
-
 [collections/hibp-pwned]
 access = read : [ * ], write : [ ]
 export = system
@@ -14,4 +13,7 @@ access = read : [ ], write : [ ]
 export = system
 
 [props]
+export = system
+
+[macros]
 export = system
