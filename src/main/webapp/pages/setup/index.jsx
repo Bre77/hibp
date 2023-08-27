@@ -9,7 +9,7 @@ import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
 import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Page from "../../shared/page";
 
 const WIDTH = 80;
@@ -217,7 +217,16 @@ const Input = () => {
                     res.ok ? res.json().then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index)) : Promise.reject(res.statusCode)
             ),
         placeholderData: DISABLED,
-        onSuccess: (data) => setLocal(data),
+        onSuccess: (data) => {
+            setLocal(data);
+            if (data !== DISABLED) {
+                fetch(`${splunkdPath}/servicesNS/nobody/hibp/apps/local/hibp?output_mode=json`, {
+                    ...defaultFetchInit,
+                    method: "POST",
+                    body: makeBody({ configured: "1" }),
+                });
+            }
+        },
     });
 
     return (
