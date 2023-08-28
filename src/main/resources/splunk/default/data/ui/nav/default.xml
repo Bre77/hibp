@@ -6,6 +6,9 @@
   <view name="heatmap" />
   <view name="all_breaches" />
   <view name="setup" />
+  <collection label="Alerts">
+    <saved source="unclassified" match="HIBP - " />
+  </collection>
   <collection label="Support">
     <a href="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py" target="_blank">Internal Logs</a>
     <a href="https://github.com/Bre77/hibp/issues" target="_blank">Github Issues</a>
