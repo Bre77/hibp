@@ -3,13 +3,14 @@ import Card from "@splunk/react-ui/Card";
 import CardLayout from "@splunk/react-ui/CardLayout";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
 import Link from "@splunk/react-ui/Link";
+import Message from "@splunk/react-ui/Message";
 import P from "@splunk/react-ui/Paragraph";
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
 import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Page from "../../shared/page";
 
 const WIDTH = 80;
@@ -209,7 +210,7 @@ const Input = () => {
         setLocal(value);
     };
 
-    const { data: remote } = useQuery({
+    const remote = useQuery({
         queryKey: ["input"],
         queryFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, defaultFetchInit).then(
@@ -229,10 +230,23 @@ const Input = () => {
         },
     });
 
-    return (
+    return remote.isError ? (
+        <ControlGroup labelWidth={WIDTH} label="Splunk Index">
+            <Message>
+                Splunk restart required.{" "}
+                <Link to="https://github.com/Bre77/hibp#troubleshooting" openInNewContext>
+                    Troubleshooting
+                </Link>
+            </Message>
+        </ControlGroup>
+    ) : (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
-            <Text value={local} onChange={handleLocal} placeholder="Disabled" />
-            <MutateButton mutation={updateRemote} label={INPUT_LABELS[+(local === DISABLED)][+(remote === DISABLED)]} disabled={local === remote} />
+            <Text value={local} onChange={handleLocal} placeholder="Disabled" disabled={remote.isLoading} />
+            <MutateButton
+                mutation={updateRemote}
+                label={INPUT_LABELS[+(local === DISABLED)][+(remote.data === DISABLED)]}
+                disabled={remote.isLoading || local === remote.data}
+            />
         </ControlGroup>
     );
 };
