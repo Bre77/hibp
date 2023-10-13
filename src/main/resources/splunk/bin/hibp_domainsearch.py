@@ -24,9 +24,13 @@ class Input(Script):
         # Check if latest recorded breach has changed
         collection = self.service.kvstore["hibp-breaches"]
 
-        lastbreach = collection.data.query(sort="AddedDate:", limit=1, fields="Name")[
-            0
-        ]["Name"]
+        try:
+            lastbreach = collection.data.query(sort="AddedDate:", limit=1, fields="Name")[
+                0
+            ]["Name"]
+        except:
+            lastbreach = None
+        
         ew.log(
             EventWriter.INFO,
             f"TEST {latestbreach} {lastbreach}",
@@ -37,6 +41,11 @@ class Input(Script):
                 f"Already have latest breach {lastbreach}",
             )
             return
+
+        ew.log(
+                EventWriter.INFO,
+                f"Updating hibp-breaches",
+            )
 
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
@@ -107,7 +116,11 @@ class Input(Script):
                     domain = d["DomainName"]
 
                     # Get Domains Checkpoint
-                    lastbreach = collection.data.query_by_id(domain)["Name"][0]
+                    try:
+                        lastbreach = collection.data.query_by_id(domain)["Name"][0]
+                    except:
+                        lastbreach = None
+                    
                     if latestbreach == lastbreach:
                         ew.log(
                             EventWriter.INFO,
@@ -139,7 +152,7 @@ class Input(Script):
 
                         # Pull this emails record from KVstore
                         try:
-                            pwned = collection.data.query_by_id(key)
+                            pwned = collection.data.query_by_id(key) #Dont change
                         except:
                             pwned = None
 
