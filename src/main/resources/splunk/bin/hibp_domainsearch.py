@@ -20,24 +20,23 @@ class Input(Script):
 
         return scheme
 
-    def update_lookup(self, ew, latestbreach):
+    def update_breaches(self, ew, latestbreach):
         # Check if latest recorded breach has changed
-        checkpointfile = os.path.join(
-            self._input_definition.metadata["checkpoint_dir"], "lastestbreach"
+        collection = self.service.kvstore["hibp-breaches"]
+
+        lastbreach = collection.data.query(sort="AddedDate:", limit=1, fields="Name")[
+            0
+        ]["Name"]
+        ew.log(
+            EventWriter.INFO,
+            f"TEST {latestbreach} {lastbreach}",
         )
-        try:
-            with open(checkpointfile, "r") as f:
-                if latestbreach == f.read():
-                    ew.log(
-                        EventWriter.INFO,
-                        f"Latest breach hasnt changed from {latestbreach}, will not update breaches lookup",
-                    )
-                    return
-        except:
+        if latestbreach == lastbreach:
             ew.log(
                 EventWriter.INFO,
-                f"Latest breach has never been checked, will update breaches lookup",
+                f"Already have latest breach {lastbreach}",
             )
+            return
 
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
@@ -51,7 +50,7 @@ class Input(Script):
 
         # Update KVstore Collection
         NOTAG = re.compile("<.*?>")
-        collection = self.service.kvstore["hibp-breaches"]
+
         for breach in breaches:
             breach["Description"] = re.sub(
                 NOTAG, "", html.unescape(breach["Description"])
@@ -63,25 +62,7 @@ class Input(Script):
                 breach["_key"] = key
                 collection.data.insert(breach)
 
-        with open(checkpointfile, "w") as f:
-            f.write(latestbreach)
-
-    def stream_events(self, inputs, ew):
-        self.service.namespace["app"] = self.APP
-
-        # Request latest breach
-        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
-            if not r.ok:
-                ew.log(
-                    EventWriter.ERROR,
-                    f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}",
-                )
-                return
-            latestbreach = r.json()["Name"]
-
-        # Update CSV Lookup
-        self.update_lookup(ew, latestbreach)
-
+    def update_pwned(self, ew, latestbreach):
         ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
         apikeys = [
@@ -89,6 +70,11 @@ class Input(Script):
             for x in self.service.storage_passwords
             if x.realm == "hibp"
         ]
+
+        if not apikeys:
+            return
+
+        collection = self.service.kvstore["hibp-pwned"]
 
         for apikey in apikeys:
             with requests.Session() as s:
@@ -121,20 +107,13 @@ class Input(Script):
                     domain = d["DomainName"]
 
                     # Get Domains Checkpoint
-                    checkpointfile = os.path.join(
-                        self._input_definition.metadata["checkpoint_dir"], domain
-                    )
-                    try:
-                        with open(checkpointfile, "r") as f:
-                            if latestbreach == f.read():
-                                # No new breaches for this domain
-                                ew.log(
-                                    EventWriter.INFO,
-                                    f"Latest breach for {domain} hasnt changed from {latestbreach}, will not query HIBP",
-                                )
-                                continue
-                    except:
-                        pass
+                    lastbreach = collection.data.query_by_id(domain)["Name"][0]
+                    if latestbreach == lastbreach:
+                        ew.log(
+                            EventWriter.INFO,
+                            f"Latest breach for {domain} hasnt changed from {lastbreach}, will not query HIBP",
+                        )
+                        continue
 
                     # Get all pwned emails in domain
                     url2 = f"https://haveibeenpwned.com/api/v3/breacheddomain/{domain}"
@@ -153,8 +132,6 @@ class Input(Script):
                         EventWriter.INFO,
                         f"{domain} has a total of {len(domainsearch)} pwned accounts",
                     )
-
-                    collection = self.service.kvstore["hibp-pwned"]
 
                     for alias in domainsearch:
                         breaches = domainsearch[alias]
@@ -196,8 +173,32 @@ class Input(Script):
                                 )
 
                     # Record checkpoint for this domain
-                    with open(checkpointfile, "w") as f:
-                        f.write(latestbreach)
+                    if lastbreach:
+                        collection.data.update(domain, {"Breaches": [latestbreach]})
+                    else:
+                        collection.data.insert(
+                            {"_key": domain, "Breaches": [latestbreach]}
+                        )
+
+    def stream_events(self, inputs, ew):
+        self.service.namespace["app"] = self.APP
+
+        # Request latest breach
+        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
+            if not r.ok:
+                ew.log(
+                    EventWriter.ERROR,
+                    f"https://haveibeenpwned.com/api/v3/latestbreach returned {r.status_code}",
+                )
+                return
+            latestbreach = r.json()["Name"]
+
+        # Update Breaches Lookup
+        self.update_breaches(ew, latestbreach)
+
+        # Update Pwned Events
+        self.update_pwned(ew, latestbreach)
+
         ew.close()
 
 
