@@ -29,7 +29,21 @@ class index(PersistentServerConnectionApplication):
                 f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/properties/inputs/hibp_domainsearch%3A%2F%2Fdefault",
                 sessionKey=AUTHTOKEN,
                 method="POST",
-                postargs={"index": INDEX},
+                postargs={"index": 0},  # TODO
+                raiseAllErrors=True,
+            )
+            self.logger.info("HIBP Reset: Disabling input")
+            simpleRequest(
+                f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/disable",
+                sessionKey=AUTHTOKEN,
+                method="POST",
+                raiseAllErrors=True,
+            )
+            self.logger.info("HIBP Reset: Enabling input")
+            simpleRequest(
+                f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/enable",
+                sessionKey=AUTHTOKEN,
+                method="POST",
                 raiseAllErrors=True,
             )
 
