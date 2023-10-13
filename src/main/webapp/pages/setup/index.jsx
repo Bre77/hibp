@@ -5,6 +5,7 @@ import ControlGroup from "@splunk/react-ui/ControlGroup";
 import Link from "@splunk/react-ui/Link";
 import Message from "@splunk/react-ui/Message";
 import P from "@splunk/react-ui/Paragraph";
+import Select from "@splunk/react-ui/Select";
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
@@ -252,6 +253,9 @@ const Input = () => {
 };
 
 const Help = () => {
+    const getHelp = (e, { value }) => {
+        window.open(value, "_blank");
+    };
     return (
         <ControlGroup
             labelWidth={WIDTH}
@@ -267,14 +271,13 @@ const Help = () => {
             }
         >
             <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Internal Logs</Button>
-            <Button to="https://github.com/Bre77/hibp/issues" openInNewContext>
-                Issues
-            </Button>
-            <Button to="slack://user?team=T047WPASC&id=U6MV3Q9UH" openInNewContext>
-                Slack
-            </Button>
-            <Button to="mailto:splunkbase@ba.id.au" openInNewContext>
-                Email
+            <Select onChange={getHelp} value="" placeholder="Get Help">
+                <Select.Option label="GitHub Issues" value="https://github.com/Bre77/hibp/issues" />
+                <Select.Option label="Slack" value="slack://user?team=T047WPASC&id=U6MV3Q9UH" />
+                <Select.Option label="Email" value="mailto:splunkbase@ba.id.au" />
+            </Select>
+            <Button appearance="destructive" to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">
+                Reset Checkpoints
             </Button>
         </ControlGroup>
     );
