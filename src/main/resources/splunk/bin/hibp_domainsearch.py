@@ -25,7 +25,7 @@ class Input(Script):
         collection = self.service.kvstore["hibp-breaches"]
 
         try:
-            lastbreach = collection.data.query(sort="AddedDate:", limit=1, fields="Name")[
+            lastbreach = collection.data.query(sort="AddedDate:-1", limit=1, fields="Name")[
                 0
             ]["Name"]
         except:
