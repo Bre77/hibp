@@ -79,7 +79,7 @@ class index(PersistentServerConnectionApplication):
                 # Remove all entries from hibp-pwned collection
                 self.logger.info("HIBP Checkpoint Reset: Removing all entries from hibp-pwned")
                 simpleRequest(
-                    f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/collections/data/hibp-pwned",
+                    f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/storage/collections/data/hibp-pwned",
                     sessionKey=AUTHTOKEN,
                     method="DELETE",
                     raiseAllErrors=True,
