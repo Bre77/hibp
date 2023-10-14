@@ -140,7 +140,7 @@ class Input(Script):
 
                     ew.log(
                         EventWriter.INFO,
-                        f"{domain} has a total of {len(domainsearch)} pwned accounts",
+                        f"{domain} has a total of {len(domainsearch)} pwned accounts. Getting new pwned accounts...",
                     )
 
                     for alias in domainsearch:
