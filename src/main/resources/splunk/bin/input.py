@@ -71,26 +71,27 @@ class index(PersistentServerConnectionApplication):
 
                 return {"payload": "", "status": 200}
             except Exception as e:
+                self.logger.error(f"HIBP Input Manager: {e}")
                 return {"payload": str(e), "status": 500}
             
         elif args['method'] == "DELETE":
             try:
                 # Remove all entries from hibp-pwned collection
-                self.logger.info("HIBP Reset: Removing all entries from hibp-pwned")
+                self.logger.info("HIBP Checkpoint Reset: Removing all entries from hibp-pwned")
                 simpleRequest(
                     f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/collections/data/hibp-pwned",
                     sessionKey=AUTHTOKEN,
                     method="DELETE",
                     raiseAllErrors=True,
                 )
-                self.logger.info("HIBP Reset: Disabling input")
+                self.logger.info("HIBP Checkpoint Reset: Disabling input")
                 simpleRequest(
                     f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/disable",
                     sessionKey=AUTHTOKEN,
                     method="POST",
                     raiseAllErrors=True,
                 )
-                self.logger.info("HIBP Reset: Enabling input")
+                self.logger.info("HIBP Checkpoint Reset: Enabling input")
                 simpleRequest(
                     f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/enable",
                     sessionKey=AUTHTOKEN,
@@ -100,6 +101,7 @@ class index(PersistentServerConnectionApplication):
 
                 return {"payload": "", "status": 200}
             except Exception as e:
+                self.logger.error(f"HIBP Checkpoint Reset: {e}")
                 return {"payload": str(e), "status": 500}
             
         else:
