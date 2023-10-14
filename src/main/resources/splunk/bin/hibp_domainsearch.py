@@ -31,10 +31,6 @@ class Input(Script):
         except:
             lastbreach = None
         
-        ew.log(
-            EventWriter.INFO,
-            f"TEST {latestbreach} {lastbreach}",
-        )
         if latestbreach == lastbreach:
             ew.log(
                 EventWriter.INFO,

@@ -4,6 +4,7 @@ import CardLayout from "@splunk/react-ui/CardLayout";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
 import Link from "@splunk/react-ui/Link";
 import Message from "@splunk/react-ui/Message";
+import MessageBar from "@splunk/react-ui/MessageBar";
 import P from "@splunk/react-ui/Paragraph";
 import Select from "@splunk/react-ui/Select";
 import Table from "@splunk/react-ui/Table";
@@ -85,24 +86,10 @@ const AddEntry = () => {
     };
 
     return (
-        <>
-            <ControlGroup
-                labelWidth={WIDTH}
-                label="Add API Key"
-                error={addApiKey.error}
-                help={
-                    <>
-                        Get from{" "}
-                        <Link to="https://haveibeenpwned.com/API/Key?ref=HIBP-Splunk-App" openInNewContext>
-                            haveibeenpwned.com/API/Key
-                        </Link>
-                    </>
-                }
-            >
-                <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle error={apiKey.length > 0 && apiKey.length !== 32} />
-                <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
-            </ControlGroup>
-        </>
+        <ControlGroup labelWidth={WIDTH} label="Add API Key" error={addApiKey.error}>
+            <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle error={apiKey.length > 0 && apiKey.length !== 32} />
+            <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
+        </ControlGroup>
     );
 };
 
@@ -241,7 +228,7 @@ const Input = () => {
             </Message>
         </ControlGroup>
     ) : (
-        <ControlGroup labelWidth={WIDTH} label="Splunk Index" help="Create an event index with long retention, then set it here to enable.">
+        <ControlGroup labelWidth={WIDTH} label="Splunk Index">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" disabled={remote.isLoading} />
             <MutateButton
                 mutation={updateRemote}
@@ -257,29 +244,63 @@ const Help = () => {
         window.open(value, "_blank");
     };
     return (
-        <ControlGroup
-            labelWidth={WIDTH}
-            label="Support"
-            help={
-                <>
-                    This app was created by{" "}
-                    <Link to="https://bre77.au?ref=HIBP-Splunk-App" openInNewContext>
-                        Brett Adams
-                    </Link>
-                    .
-                </>
-            }
-        >
-            <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">Internal Logs</Button>
+        <>
+            <Button to="https://github.com/Bre77/hibp#install" openInNewContext>
+                Install Guide
+            </Button>
+            <Button to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py" openInNewContext>
+                Internal Logs
+            </Button>
             <Select onChange={getHelp} value="" placeholder="Get Help">
                 <Select.Option label="GitHub Issues" value="https://github.com/Bre77/hibp/issues" />
                 <Select.Option label="Slack" value="slack://user?team=T047WPASC&id=U6MV3Q9UH" />
                 <Select.Option label="Email" value="mailto:splunkbase@ba.id.au" />
             </Select>
-            <Button appearance="destructive" to="/app/hibp/search?q=search%20index%3D_internal%20component%3DExecProcessor%20hibp_domainsearch.py">
-                Reset Checkpoints
-            </Button>
-        </ControlGroup>
+            <Reset />
+        </>
+    );
+};
+
+const Reset = () => {
+    const resetCheckpoints = useMutation({
+        mutationFn: () =>
+            fetch(`${splunkdPath}/services/hibp/reset`, {
+                ...defaultFetchInit,
+                method: "POST",
+            }).then((res) => (res.ok ? Promise.resolve() : Promise.reject(res.statusCode))),
+    });
+
+    const [clicks, setClicks] = useState(0);
+    const handleClick = () => {
+        setClicks(clicks + 1);
+    };
+    return [
+        <Button appearance="destructive" onClick={handleClick}>
+            Clear checkpoints
+        </Button>,
+        <Button
+            appearance={{ idle: "destructive", loading: "pill", success: "primary", error: "default" }[resetCheckpoints.status]}
+            onClick={resetCheckpoints.mutate}
+            disabled={resetCheckpoints.isLoading || resetCheckpoints.isSuccess}
+            label={{ idle: "Are you sure?", loading: "Resetting", success: "Checkpoints cleared", error: "Failed" }[resetCheckpoints.status]}
+        />,
+    ][clicks];
+};
+
+const Kvstore = () => {
+    const status = useQuery({
+        queryKey: ["kvstore"],
+        queryFn: () =>
+            fetch(`${splunkdPath}/services/properties/server/kvstore/disabled`, defaultFetchInit).then((res) =>
+                res.ok ? res.text() : Promise.reject(res.statusCode)
+            ),
+    });
+    return (
+        status.data === "true" && (
+            <MessageBar type="error">
+                KV Store is disabled. This app <strong>cannot operate at all</strong> without KV Store.
+            </MessageBar>
+        )
     );
 };
 
@@ -295,15 +316,52 @@ const Setup = () => {
         placeholderData: [],
     });
     return (
-        <CardLayout cardWidth={570} gutterSize={13}>
+        <CardLayout cardWidth={570} gutterSize={12}>
             <Card>
-                <Card.Header title="Setup Have I Been Pwned Domain Search" />
+                <Card.Header title="Have I Been Pwned Domain Search Setup" />
                 <Card.Body>
-                    <AddEntry />
-                    <Input />
+                    <P>
+                        This app requires the KV Store at both input and search time. You must configure each Have I Been Pwned API key one time on one server,
+                        otherwise you will download data multiple times.
+                    </P>
+                    <P>
+                        This app was created by{" "}
+                        <Link to="https://bre77.au?ref=HIBP-Splunk-App" openInNewContext>
+                            Brett Adams
+                        </Link>
+                        .
+                    </P>
                     <Help />
                 </Card.Body>
             </Card>
+            <Card>
+                <Card.Header title="Input Only (HF/IDM/Splunk Cloud)" />
+                <Card.Body>
+                    <P>
+                        Only configure your Have I Been Pwned API Key in one location, such as a Heavy Forwarder, Input Data Manager, or your Splunk Cloud
+                        Search Head.
+                    </P>
+                    <P>
+                        Get from{" "}
+                        <Link to="https://haveibeenpwned.com/API/Key?ref=HIBP-Splunk-App" openInNewContext>
+                            haveibeenpwned.com/API/Key
+                        </Link>
+                    </P>
+                    <AddEntry />
+                </Card.Body>
+            </Card>
+            <Card>
+                <Card.Header title="Input and Search (Everywhere)" />
+                <Card.Body>
+                    <P>
+                        You must set the index name on all installations of this app. It is used at input time to record breaches, and at search time for
+                        lookups and dashboards. To disable the input, remove the index name, and click Disable.
+                    </P>
+                    <P>Use an event index with very long retention, the data volume will be very small.</P>
+                    <Input />
+                </Card.Body>
+            </Card>
+
             {data.map(([name, apikey]) => (
                 <Card key={name}>
                     <ApiCard key={name} name={name} apikey={apikey} />
@@ -313,4 +371,9 @@ const Setup = () => {
     );
 };
 
-Page(<Setup />);
+Page(
+    <>
+        <Kvstore />
+        <Setup />
+    </>
+);
