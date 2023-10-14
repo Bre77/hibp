@@ -1,6 +1,6 @@
 {
     "name": "hibp",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "license": "https://cdn.splunkbase.splunk.com/static/misc/eula.html",
     "splunkbaseid": 6996,
     "scripts": {
