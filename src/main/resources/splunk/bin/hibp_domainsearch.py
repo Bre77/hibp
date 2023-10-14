@@ -25,12 +25,12 @@ class Input(Script):
         collection = self.service.kvstore["hibp-breaches"]
 
         try:
-            lastbreach = collection.data.query(sort="AddedDate:-1", limit=1, fields="Name")[
-                0
-            ]["Name"]
+            lastbreach = collection.data.query(
+                sort="AddedDate:-1", limit=1, fields="Name"
+            )[0]["Name"]
         except:
             lastbreach = None
-        
+
         if latestbreach == lastbreach:
             ew.log(
                 EventWriter.INFO,
@@ -39,9 +39,9 @@ class Input(Script):
             return
 
         ew.log(
-                EventWriter.INFO,
-                f"Updating hibp-breaches",
-            )
+            EventWriter.INFO,
+            f"Updating hibp-breaches",
+        )
 
         # Get all breaches
         with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
@@ -114,14 +114,14 @@ class Input(Script):
                     # Get Domains Checkpoint
                     try:
                         checkpoint = collection.data.query_by_id(domain)
-                    except Exception as e:
+                    except:
                         checkpoint = None
 
                     try:
                         lastbreach = checkpoint["Breaches"][0]
                     except:
                         lastbreach = None
-                    
+
                     if latestbreach == lastbreach:
                         ew.log(
                             EventWriter.INFO,
@@ -153,7 +153,7 @@ class Input(Script):
 
                         # Pull this emails record from KVstore
                         try:
-                            pwned = collection.data.query_by_id(key) #Dont change
+                            pwned = collection.data.query_by_id(key)  # Dont change
                         except:
                             pwned = None
 
