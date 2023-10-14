@@ -25,7 +25,7 @@ Only configure your HIBP API key in one place, where you want the data to actual
 
 You **must** also install and configure this app without the HIBP API key on any Search Head that will use the app or search the data, otherwise the breaches lookup wont get populated. This includes Enterprise Security and Classic experience search heads. A restart appears to be required only in some instances, specifically Search Head Clusters.
 
-This app requires the KV Store for both search time lookups and input time checkpoints.
+This app **requires** the KV Store for both search time lookups and input time checkpoints.
 
 ## Troubleshooting
 
@@ -34,6 +34,8 @@ You will need to restart Splunk Cloud Search Head Clusters to configure this app
 The modular input's logs can be found at `index=_internal component=ExecProcessor hibp_domainsearch`
 
 This app requires the KV Store for both search time lookups and checkpoints.
+
+If your architecture restricts internet access on Search Heads, you could sync the hibp-breaches lookup from a Heavy Forwarder using [TA-SyncKVStore](https://github.com/georgestarcher/TA-SyncKVStore).
 
 ## Credits
 
