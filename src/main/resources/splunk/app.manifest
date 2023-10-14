@@ -4,6 +4,7 @@
     "title": "Have I Been Pwned Domain Search", 
     "id": {
       "name": "hibp"
+      "version": "1.0.6"
     }, 
     "releaseNotes": {
       "uri": "https://github.com/Bre77/hibp/releases"
