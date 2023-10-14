@@ -252,7 +252,7 @@ const Help = () => {
                 Internal Logs
             </Button>
             <Select onChange={getHelp} value="" placeholder="Get Help">
-                <Select.Option label="GitHub Issues" value="https://github.com/Bre77/hibp/issues" />
+                <Select.Option label="GitHub" value="https://github.com/Bre77/hibp/issues" />
                 <Select.Option label="Slack" value="slack://user?team=T047WPASC&id=U6MV3Q9UH" />
                 <Select.Option label="Email" value="mailto:splunkbase@ba.id.au" />
             </Select>
@@ -264,9 +264,9 @@ const Help = () => {
 const Reset = () => {
     const resetCheckpoints = useMutation({
         mutationFn: () =>
-            fetch(`${splunkdPath}/services/hibp/reset`, {
+            fetch(`${splunkdPath}/services/hibp/input`, {
                 ...defaultFetchInit,
-                method: "POST",
+                method: "DELETE",
             }).then((res) => (res.ok ? Promise.resolve() : Promise.reject(res.statusCode))),
     });
 
@@ -298,7 +298,7 @@ const Kvstore = () => {
     return (
         status.data === "true" && (
             <MessageBar type="error">
-                KV Store is disabled. This app <strong>cannot operate at all</strong> without KV Store.
+                KV Store is disabled. <strong>This app cannot operate without KV Store.</strong>
             </MessageBar>
         )
     );
@@ -321,11 +321,11 @@ const Setup = () => {
                 <Card.Header title="Have I Been Pwned Domain Search Setup" />
                 <Card.Body>
                     <P>
-                        This app requires the KV Store at both input and search time. You must configure each Have I Been Pwned API key one time on one server,
-                        otherwise you will download data multiple times.
+                        This app requires the KV Store at both input and search time. You must configure each Have I Been Pwned API key only once, otherwise you
+                        will download data multiple times.
                     </P>
                     <P>
-                        This app was created by{" "}
+                        Created and supported by{" "}
                         <Link to="https://bre77.au?ref=HIBP-Splunk-App" openInNewContext>
                             Brett Adams
                         </Link>
