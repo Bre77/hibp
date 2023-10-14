@@ -113,7 +113,8 @@ class Input(Script):
 
                     # Get Domains Checkpoint
                     try:
-                        lastbreach = collection.data.query_by_id(domain)["Name"][0]
+                        checkpoint = collection.data.query_by_id(domain)
+                        lastbreach = checkpoint["Breaches"][0]
                     except:
                         lastbreach = None
                     
@@ -182,7 +183,7 @@ class Input(Script):
                                 )
 
                     # Record checkpoint for this domain
-                    if lastbreach:
+                    if checkpoint:
                         collection.data.update(domain, {"Breaches": [latestbreach]})
                     else:
                         collection.data.insert(
