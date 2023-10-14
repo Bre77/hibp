@@ -114,6 +114,10 @@ class Input(Script):
                     # Get Domains Checkpoint
                     try:
                         checkpoint = collection.data.query_by_id(domain)
+                    except Exception as e:
+                        checkpoint = None
+
+                    try:
                         lastbreach = checkpoint["Breaches"][0]
                     except:
                         lastbreach = None
