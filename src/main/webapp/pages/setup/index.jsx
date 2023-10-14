@@ -3,7 +3,6 @@ import Card from "@splunk/react-ui/Card";
 import CardLayout from "@splunk/react-ui/CardLayout";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
 import Link from "@splunk/react-ui/Link";
-import Message from "@splunk/react-ui/Message";
 import MessageBar from "@splunk/react-ui/MessageBar";
 import P from "@splunk/react-ui/Paragraph";
 import Select from "@splunk/react-ui/Select";
@@ -219,14 +218,12 @@ const Input = () => {
     });
 
     return remote.isError ? (
-        <ControlGroup labelWidth={WIDTH} label="Splunk Index">
-            <Message>
-                Splunk restart required.{" "}
-                <Link to="https://github.com/Bre77/hibp#troubleshooting" openInNewContext>
-                    Troubleshooting
-                </Link>
-            </Message>
-        </ControlGroup>
+        <MessageBar type="warning">
+            Splunk restart required.{" "}
+            <Link to="https://github.com/Bre77/hibp#troubleshooting" openInNewContext>
+                Troubleshooting
+            </Link>
+        </MessageBar>
     ) : (
         <ControlGroup labelWidth={WIDTH} label="Splunk Index">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" disabled={remote.isLoading} />
