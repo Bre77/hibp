@@ -1,0 +1,160 @@
+<form version="1.1" theme="dark">
+  <label>By Data Types</label>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="dataclasses">
+      <label>Data Type</label>
+      <fieldForLabel>DataClasses</fieldForLabel>
+      <fieldForValue>DataClasses</fieldForValue>
+      <search>
+        <query>`hibp_index` sourcetype="hibp:pwned" | table DataClasses | mvexpand DataClasses | dedup DataClasses sortby DataClasses</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Emails Pwned</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+| eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
+| dedup Email sortby _time 
+| timechart dc(Email) as count 
+| streamstats sum(count) as count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trendInterval">-1mon</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Breaches Involved</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+| eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
+| dedup Breach sortby _time 
+| timechart dc(Breach) as count 
+| streamstats sum(count) as count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trendInterval">-1mon</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Total Instances</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+| eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
+| timechart count 
+| streamstats sum(count) as count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="rangeColors">["0x53a051","0x0877a6","0xf8be34","0xf1813f","0xdc4e41"]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trendInterval">-1mon</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Newest Breach Involved</title>
+      <single>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") | sort 1 -_time | table Breach</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Breach Timeline</title>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eval _time=strptime(BreachDate,"%Y-%m-%d") | timechart limit=0 count by Title</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="charting.axisTitleX.visibility">collapsed</option>
+        <option name="charting.axisTitleY.text">Emails</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">none</option>
+        <option name="charting.legend.placement">none</option>
+        <option name="refresh.display">progressbar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Last Emails Pwned</title>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | table Email Breach BreachDate | sort -BreachDate</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="count">50</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="number" field="percent">
+          <option name="precision">0</option>
+          <option name="unit">%</option>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/hibp/by_email?form.email=$click.value$</link>
+        </drilldown>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>Top Emails Pwned</title>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | top 0 Email</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="count">50</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <link target="_blank">/app/hibp/by_email?form.email=$click.name$</link>
+        </drilldown>
+      </table>
+    </panel>
+    <panel>
+      <table>
+        <title>Top Breaches</title>
+        <search>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eventstats dc(Email) as max | stats count values(max) as max by Breach | eval percent = count/max*100 | fields - max | sort 0 - count</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="count">50</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="number" field="percent">
+          <option name="precision">0</option>
+          <option name="unit">%</option>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/hibp/by_breach?form.breach=$click.value$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+</form>

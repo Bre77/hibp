@@ -3,6 +3,7 @@
   <view name="by_breach" />
   <view name="by_domain" />
   <view name="by_email" />
+  <view name="by_data_type" />
   <view name="heatmap" />
   <view name="all_breaches" />
   <view name="setup" />
