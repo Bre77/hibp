@@ -77,6 +77,7 @@ const AddEntry = () => {
                     }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject(res.statusText))),
                 (status) => Promise.reject(ERRORS?.[status] || `API returned with status ${status}`)
             ),
+        onSuccess: () => fetch(`${splunkdPath}/services/hibp/input`, { ...defaultFetchInit, method: "PATCH" }),
     });
 
     const handleApiKey = (e, { value }) => {

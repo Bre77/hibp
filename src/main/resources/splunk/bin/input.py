@@ -84,19 +84,23 @@ class index(PersistentServerConnectionApplication):
                     method="GET",
                     raiseAllErrors=True,
                 )
-                if not (json.loads(content)["entry"][0]["content"]["disabled"]):
-                    simpleRequest(
-                        f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/disable",
-                        sessionKey=AUTHTOKEN,
-                        method="POST",
-                        raiseAllErrors=True,
-                    )
-                    simpleRequest(
-                        f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/enable",
-                        sessionKey=AUTHTOKEN,
-                        method="POST",
-                        raiseAllErrors=True,
-                    )
+                if json.loads(content)["entry"][0]["content"]["disabled"]:
+                    return {"payload": "", "status": 400}
+
+                simpleRequest(
+                    f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/disable",
+                    sessionKey=AUTHTOKEN,
+                    method="POST",
+                    raiseAllErrors=True,
+                )
+                simpleRequest(
+                    f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/enable",
+                    sessionKey=AUTHTOKEN,
+                    method="POST",
+                    raiseAllErrors=True,
+                )
+                return {"payload": "", "status": 200}
+
             except Exception as e:
                 self.logger.error(f"HIBP Input Manager: {e}")
                 return {"payload": str(e), "status": 500}
