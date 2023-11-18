@@ -1,12 +1,12 @@
 <form version="1.1" theme="dark">
   <label>By Data Types</label>
   <fieldset submitButton="false">
-    <input type="dropdown" token="dataclasses">
+    <input type="dropdown" token="dataclass">
       <label>Data Type</label>
       <fieldForLabel>DataClasses</fieldForLabel>
       <fieldForValue>DataClasses</fieldForValue>
       <search>
-        <query>`hibp_index` sourcetype="hibp:pwned" | table DataClasses | mvexpand DataClasses | dedup DataClasses sortby DataClasses</query>
+        <query>`hibp_index` sourcetype="hibp:pwned" | stats values(DataClasses) as DataClasses | mvexpand DataClasses</query>
         <earliest>0</earliest>
         <latest></latest>
       </search>
@@ -17,7 +17,7 @@
       <title>Emails Pwned</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" 
 | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
 | dedup Email sortby _time 
 | timechart dc(Email) as count 
@@ -35,7 +35,7 @@
       <title>Breaches Involved</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" 
 | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
 | dedup Breach sortby _time 
 | timechart dc(Breach) as count 
@@ -53,7 +53,7 @@
       <title>Total Instances</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" 
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" 
 | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") 
 | timechart count 
 | streamstats sum(count) as count</query>
@@ -70,7 +70,7 @@
       <title>Newest Breach Involved</title>
       <single>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") | sort 1 -_time | table Breach</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" | eval _time=strptime(AddedDate,"%Y-%m-%dT%H:%M:%SZ") | sort 1 -_time | table Breach</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -84,7 +84,7 @@
       <chart>
         <title>Breach Timeline</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eval _time=strptime(BreachDate,"%Y-%m-%d") | timechart limit=0 count by Title</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" | eval _time=strptime(BreachDate,"%Y-%m-%d") | timechart limit=0 count by Title</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -104,7 +104,7 @@
       <table>
         <title>Last Emails Pwned</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | table Email Breach BreachDate | sort -BreachDate</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" | table Email Breach BreachDate | sort -BreachDate</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -124,7 +124,7 @@
       <table>
         <title>Top Emails Pwned</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | top 0 Email</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" | top 0 Email</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
@@ -140,7 +140,7 @@
       <table>
         <title>Top Breaches</title>
         <search>
-          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclasses$" | eventstats dc(Email) as max | stats count values(max) as max by Breach | eval percent = count/max*100 | fields - max | sort 0 - count</query>
+          <query>`hibp_index` sourcetype="hibp:pwned" DataClasses="$dataclass$" | eventstats dc(Email) as max | stats count values(max) as max by Breach | eval percent = count/max*100 | fields - max | sort 0 - count</query>
           <earliest>0</earliest>
           <latest></latest>
         </search>
