@@ -3,6 +3,7 @@ import json
 import logging
 from splunk.rest import simpleRequest
 
+
 class index(PersistentServerConnectionApplication):
     APP_NAME = "hibp"
 
@@ -25,10 +26,9 @@ class index(PersistentServerConnectionApplication):
                 INDEX = form["index"]
             except KeyError:
                 return {"payload": "No index provided", "status": 400}
-            
 
             try:
-                if(INDEX is not ""):
+                if INDEX is not "":
                     self.logger.info("HIBP Input Manager: Setting index")
                     simpleRequest(
                         f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/properties/inputs/hibp_domainsearch%3A%2F%2Fdefault",
@@ -73,11 +73,40 @@ class index(PersistentServerConnectionApplication):
             except Exception as e:
                 self.logger.error(f"HIBP Input Manager: {e}")
                 return {"payload": str(e), "status": 500}
-            
-        elif args['method'] == "DELETE":
+
+        elif args["method"] == "PATCH":
+            try:
+                self.logger.info("HIBP Input Manager: Restarting input")
+
+                resp, content = simpleRequest(
+                    f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default?output_mode=json",
+                    sessionKey=AUTHTOKEN,
+                    method="GET",
+                    raiseAllErrors=True,
+                )
+                if not (json.loads(content)["entry"][0]["content"]["disabled"]):
+                    simpleRequest(
+                        f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/disable",
+                        sessionKey=AUTHTOKEN,
+                        method="POST",
+                        raiseAllErrors=True,
+                    )
+                    simpleRequest(
+                        f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/data/inputs/hibp_domainsearch/default/enable",
+                        sessionKey=AUTHTOKEN,
+                        method="POST",
+                        raiseAllErrors=True,
+                    )
+            except Exception as e:
+                self.logger.error(f"HIBP Input Manager: {e}")
+                return {"payload": str(e), "status": 500}
+
+        elif args["method"] == "DELETE":
             try:
                 # Remove all entries from hibp-pwned collection
-                self.logger.info("HIBP Checkpoint Reset: Removing all entries from hibp-pwned")
+                self.logger.info(
+                    "HIBP Checkpoint Reset: Removing all entries from hibp-pwned"
+                )
                 simpleRequest(
                     f"{LOCAL_URI}/servicesNS/nobody/{self.APP_NAME}/storage/collections/data/hibp-pwned",
                     sessionKey=AUTHTOKEN,
@@ -103,7 +132,6 @@ class index(PersistentServerConnectionApplication):
             except Exception as e:
                 self.logger.error(f"HIBP Checkpoint Reset: {e}")
                 return {"payload": str(e), "status": 500}
-            
+
         else:
             return {"payload": "", "status": 504}
-        
