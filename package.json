@@ -18,7 +18,8 @@
     "dependencies": {
         "@splunk/react-ui": "^4.37.0",
         "@tanstack/react-query": "^4.36.1",
-        "@tanstack/react-query-devtools": "^4.36.1"
+        "@tanstack/react-query-devtools": "^4.36.1",
+        "imports-loader": "^5.0.0"
     },
     "devDependencies": {
         "@babel/core": "^7.25.2",
