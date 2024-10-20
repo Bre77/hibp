@@ -1,12 +1,12 @@
 []
 access = read : [ * ], write : [ admin, sc_admin ]
 
-[collections/hibp-pwned]
+[collections/hibp-breaches]
 access = read : [ * ], write : [ ]
 export = system
 owner = nobody
 
-[collections/hibp-breaches]
+[collections/hibp-pwned]
 access = read : [ ], write : [ ]
 
 [transforms]
