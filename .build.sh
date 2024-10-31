@@ -1,8 +1,8 @@
 #!/bin/bash
 cd "${0%/*}"
 OUTPUT="${1:-hibp.spl}"
-pnpm install --non-interactive
-pnpm run build
+pnpm install
+pnpm build
 chmod -R u=rwX,go= stage/*
 chmod -R u-x+X stage/*
 chmod -R u=rwx,go= stage/bin/*
@@ -12,5 +12,5 @@ rm -rf hibp/lib/splunklib/__pycache__
 rm -rf hibp/lib/splunklib/searchcommands/__pycache__
 rm -rf hibp/lib/splunklib/modularinput/__pycache__
 rm -rf hibp/lib/*/__pycache__
-tar -cpzf $OUTPUT --exclude=hibp/.* --overwrite hibp 
+tar -cpzf $OUTPUT --exclude=hibp/.* --overwrite hibp
 rm -rf hibp

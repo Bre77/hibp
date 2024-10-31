@@ -21,11 +21,11 @@ if (!commands.includes(arg)) {
 // prettier-ignore
 const runCommands = {
     win32: {
-        build: () => shell.exec('set NODE_ENV=production&&.\\node_modules\\.bin\\webpack -p'),
+        build: () => shell.exec('set NODE_ENV=production&&.\\node_modules\\.bin\\webpack --mode=production'),
         link: () => shell.exec('mklink /D "%SPLUNK_HOME%\\etc\\apps\\hibp" "%cd%\\stage"'),
     },
     nix: {
-        build: () => shell.exec('export NODE_ENV=production && ./node_modules/.bin/webpack -p'),
+        build: () => shell.exec('export NODE_ENV=production && ./node_modules/.bin/webpack --mode=production'),
         link: () => shell.exec('ln -s $PWD/stage $SPLUNK_HOME/etc/apps/hibp'),
     },
 };
