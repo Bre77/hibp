@@ -1,4 +1,6 @@
+/* eslint-disable react/prop-types */
 import Button from "@splunk/react-ui/Button";
+import Switch from '@splunk/react-ui/Switch';
 import Card from "@splunk/react-ui/Card";
 import CardLayout from "@splunk/react-ui/CardLayout";
 import ControlGroup from "@splunk/react-ui/ControlGroup";
@@ -9,7 +11,7 @@ import Select from "@splunk/react-ui/Select";
 import Table from "@splunk/react-ui/Table";
 import Text from "@splunk/react-ui/Text";
 import { splunkdPath } from "@splunk/splunk-utils/config";
-import { defaultFetchInit } from "@splunk/splunk-utils/fetch";
+import { getDefaultFetchInit } from "@splunk/splunk-utils/fetch";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import Page from "../../shared/page";
@@ -38,7 +40,7 @@ const SubscriptionQuery = (apikey) => ({
     queryKey: ["subscription", apikey],
     queryFn: () =>
         fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
-            ...defaultFetchInit,
+            ...getDefaultFetchInit(),
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscription/status" }),
         }).then(HandleHIBP),
@@ -48,7 +50,7 @@ const DomainQuery = (apikey) => ({
     queryKey: ["domains", apikey],
     queryFn: () =>
         fetch(`${splunkdPath}/services/hibp/api?output_mode=json`, {
-            ...defaultFetchInit,
+            ...getDefaultFetchInit(),
             method: "POST",
             body: makeBody({ apikey, endpoint: "subscribeddomains" }),
         }).then(HandleHIBP),
@@ -65,19 +67,19 @@ const AddEntry = () => {
     const queryClient = useQueryClient();
 
     const [apiKey, setApiKey] = useState("");
-
+    const fetchInit = getDefaultFetchInit();
     const addApiKey = useMutation({
         mutationFn: () =>
             queryClient.fetchQuery(SubscriptionQuery(apiKey)).then(
                 () =>
                     fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
-                        ...defaultFetchInit,
+                        ...fetchInit,
                         method: "POST",
                         body: makeBody({ name: Date.now(), realm: "hibp", password: apiKey }),
                     }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") && setApiKey("") : Promise.reject(res.statusText))),
                 (status) => Promise.reject(ERRORS?.[status] || `API returned with status ${status}`)
             ),
-        onSuccess: () => fetch(`${splunkdPath}/services/hibp/input`, { ...defaultFetchInit, method: "PATCH" }),
+        onSuccess: () => fetch(`${splunkdPath}/services/hibp/input`, { ...fetchInit, method: "PATCH" }),
     });
 
     const handleApiKey = (e, { value }) => {
@@ -97,11 +99,11 @@ const ApiCard = ({ name, apikey }) => {
     const queryClient = useQueryClient();
     const subscription = useQuery(SubscriptionQuery(apikey));
     const domains = useQuery(DomainQuery(apikey));
-
+    const fetchInit = getDefaultFetchInit();
     const removeApiKey = useMutation({
         mutationFn: () =>
             fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords/${name}?output_mode=json`, {
-                ...defaultFetchInit,
+                ...fetchInit,
                 method: "DELETE",
             }).then((res) => (res.ok ? queryClient.invalidateQueries("apikeys") : Promise.reject(res.statusCode))),
     });
@@ -174,6 +176,148 @@ const ApiCard = ({ name, apikey }) => {
     );
 };
 
+const AddProxy = () => {
+    const queryClient = useQueryClient();
+
+    const [proxyServer, setProxyServer] = useState('');
+    const [proxyPort, setProxyPort] = useState(0);
+    const [proxyUsername, setProxyUsername] = useState('');
+    const [proxyPassword, setProxyPassword] = useState('');
+    const [authenticationEnabled, setAuthenticationEnabled] = useState(false);
+
+    const fetchInit = getDefaultFetchInit();
+
+    const addProxySettings = useMutation({
+        mutationFn: async () => {
+            if(authenticationEnabled) {
+            const response = await fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json`, {
+                ...fetchInit,
+                method: "POST",
+                body: makeBody({
+                    name: Date.now(),
+                    realm: "hibp-proxy",
+                    password: authenticationEnabled ? proxyPassword : "",
+                }),
+            })
+            if (!response.ok) {
+                throw await response.text();
+            }
+            };
+            let postBody = "";
+            if(authenticationEnabled) {
+                postBody = makeBody({
+                    proxyServer,
+                    proxyPort,
+                    authenticationEnabled,
+                    proxyUsername: authenticationEnabled ? proxyUsername : "",
+                })
+            } else {
+                postBody = makeBody({
+                    proxyServer,
+                    proxyPort,
+                    authenticationEnabled
+                })
+            }
+
+            const proxySettingsResponse = await fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, {
+                ...fetchInit,
+                method: "POST",
+                body: postBody,
+            });
+    
+            if (!proxySettingsResponse.ok) {
+                throw await proxySettingsResponse.text();
+            }
+    
+            // Invalidate the necessary queries after both operations succeed
+            queryClient.invalidateQueries("apikeys");
+            
+            // Clear the input fields
+            setProxyServer("");
+            setProxyPort(0);
+            setProxyUsername("");
+            setProxyPassword("");
+        },
+        onSuccess: () => fetch(`${splunkdPath}/services/hibp/input`, { ...fetchInit, method: "PATCH" }),
+    });
+
+    const handleProxyChange = (event, { name, value }) => {
+        switch (name) {
+            case "proxyServer":
+                setProxyServer(value);
+                break;
+            case "proxyPort":
+                setProxyPort(parseInt(value, 10));
+                break;
+            case "proxyUsername":
+                setProxyUsername(value);
+                break;
+            case "proxyPassword":
+                setProxyPassword(value);
+                break;
+            default:
+                break;
+        }
+        addProxySettings.reset();
+    };
+
+    const handleAuthenticationChange = (event) => {
+        setAuthenticationEnabled(prevState => !prevState);
+        console.log('Authentication Enabled:', !authenticationEnabled);
+        addProxySettings.reset();
+    };
+
+    return (
+        <>
+<ControlGroup labelWidth={WIDTH} label="Proxy Hostname" error={addProxySettings.error}>
+    <Text 
+        value={proxyServer} 
+        onChange={(e) => handleProxyChange(e, { name: "proxyServer", value: e.target.value })} 
+        placeholder="Proxy Server" 
+    />
+    <Text 
+        value={proxyPort}
+        onChange={(e) => handleProxyChange(e, { name: "proxyPort", value: e.target.value })} 
+        type="number"
+        placeholder = "8080"
+    />
+    </ControlGroup>
+    <ControlGroup labelWidth={WIDTH} label="Enable Authentication">
+    <Switch 
+        selected={authenticationEnabled}
+        onClick={handleAuthenticationChange}
+        data-test="switch"
+        appearance="toggle"
+    />
+    </ControlGroup>
+    {authenticationEnabled && (
+        <>
+        <ControlGroup labelWidth={WIDTH} label="Proxy User">
+            <Text
+                label="Proxy User" 
+                value={proxyUsername} 
+                onChange={(e) => handleProxyChange(e, { name: "proxyUsername", value: e.target.value })} 
+                data-test="username-input"
+            />
+        </ControlGroup>
+        <ControlGroup labelWidth={WIDTH} label="Proxy Password">
+            <Text 
+                value={proxyPassword}
+                passwordVisibilityToggle 
+                onChange={(e) => handleProxyChange(e, { name: "proxyPassword", value: e.target.value })} 
+                type="password" 
+                data-test="password-input"
+                aria-label="Proxy Password"
+            />
+        </ControlGroup>
+
+        </>
+    )}
+<MutateButton mutation={addProxySettings} label="Add" />
+        </>
+    );
+};
+
 const DISABLED = "";
 
 const INPUT_LABELS = [
@@ -183,11 +327,11 @@ const INPUT_LABELS = [
 const Input = () => {
     const queryClient = useQueryClient();
     const [local, setLocal] = useState(DISABLED);
-
+    const fetchInit = getDefaultFetchInit();
     const updateRemote = useMutation({
         mutationFn: () =>
             fetch(`${splunkdPath}/services/hibp/input?output_mode=json`, {
-                ...defaultFetchInit,
+                ...fetchInit,
                 method: "POST",
                 body: makeBody({ index: local }),
             }).then((res) => (res.ok ? queryClient.invalidateQueries({ queryKey: ["input"] }) : res.text().then((error) => Promise.reject(error)))),
@@ -201,7 +345,7 @@ const Input = () => {
     const remote = useQuery({
         queryKey: ["input"],
         queryFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, defaultFetchInit).then(
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, fetchInit).then(
                 (res) =>
                     res.ok ? res.json().then(({ entry }) => (entry[0].content.disabled ? DISABLED : entry[0].content.index)) : Promise.reject(res.statusCode)
             ),
@@ -210,7 +354,7 @@ const Input = () => {
             setLocal(data);
             if (data !== DISABLED) {
                 fetch(`${splunkdPath}/servicesNS/nobody/hibp/apps/local/hibp?output_mode=json`, {
-                    ...defaultFetchInit,
+                    ...fetchInit,
                     method: "POST",
                     body: makeBody({ configured: "1" }),
                 });
@@ -263,7 +407,7 @@ const Reset = () => {
     const resetCheckpoints = useMutation({
         mutationFn: () =>
             fetch(`${splunkdPath}/services/hibp/input`, {
-                ...defaultFetchInit,
+                ...getDefaultFetchInit(),
                 method: "DELETE",
             }).then((res) => (res.ok ? Promise.resolve() : Promise.reject(res.statusCode))),
     });
@@ -289,7 +433,7 @@ const Kvstore = () => {
     const status = useQuery({
         queryKey: ["kvstore"],
         queryFn: () =>
-            fetch(`${splunkdPath}/services/properties/server/kvstore/disabled`, defaultFetchInit).then((res) =>
+            fetch(`${splunkdPath}/services/properties/server/kvstore/disabled`, getDefaultFetchInit()).then((res) =>
                 res.ok ? res.text() : Promise.reject(res.statusCode)
             ),
     });
@@ -306,7 +450,7 @@ const Setup = () => {
     const { data } = useQuery({
         queryKey: ["apikeys"],
         queryFn: () =>
-            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, defaultFetchInit).then((res) =>
+            fetch(`${splunkdPath}/servicesNS/nobody/hibp/storage/passwords?output_mode=json&count=0&search=realm=hibp`, getDefaultFetchInit()).then((res) =>
                 res.ok
                     ? res.json().then(({ entry }) => entry.map((password) => [password.name, password.content.clear_password]))
                     : Promise.reject(res.statusCode)
@@ -357,6 +501,15 @@ const Setup = () => {
                     </P>
                     <P>Use an event index with very long retention, the data volume will be very small.</P>
                     <Input />
+                </Card.Body>
+            </Card>
+            <Card>
+                <Card.Header title="Proxy Settings (HF/IDM/Splunk Cloud)" />
+                <Card.Body>
+                    <P>
+                        Configure a Proxy. Enter proxy server hostname without http[s]://
+                    </P>
+                    <AddProxy />
                 </Card.Body>
             </Card>
 
