@@ -1,14 +1,14 @@
 {
-  "schemaVersion": "1.0.0", 
+  "schemaVersion": "1.0.0",
   "info": {
-    "title": "Have I Been Pwned Domain Search", 
+    "title": "Have I Been Pwned Domain Search",
     "id": {
       "name": "hibp",
-      "version": "1.1.5"
-    }, 
+      "version": "1.1.6"
+    },
     "releaseNotes": {
       "uri": "https://github.com/Bre77/hibp/releases"
     }
-  }, 
+  },
   "tasks": ["hibp_domainsearch://default"]
 }
