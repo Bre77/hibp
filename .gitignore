@@ -12,3 +12,4 @@ functional-temp
 splunktional-temp
 src/main/resources/splunk/lib/*
 !src/main/resources/splunk/lib/requirements.txt
+yarn.lock

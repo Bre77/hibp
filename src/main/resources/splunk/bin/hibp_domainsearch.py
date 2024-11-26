@@ -3,6 +3,7 @@ import sys
 import requests
 import html
 import re
+from urllib.parse import quote_plus
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from splunklib.modularinput import Script, Scheme, Event, EventWriter
@@ -20,10 +21,9 @@ class Input(Script):
 
         return scheme
 
-    def update_breaches(self, ew, latestbreach):
+    def update_breaches(self, ew, latestbreach, proxysettings):
         # Check if latest recorded breach has changed
         collection = self.service.kvstore["hibp-breaches"]
-
         try:
             lastbreach = collection.data.query(
                 sort="AddedDate:-1", limit=1, fields="Name"
@@ -44,7 +44,9 @@ class Input(Script):
         )
 
         # Get all breaches
-        with requests.get("https://haveibeenpwned.com/api/v3/breaches") as r:
+        with requests.get(
+            "https://haveibeenpwned.com/api/v3/breaches", proxies=proxysettings
+        ) as r:
             if not r.ok:
                 ew.log(
                     EventWriter.ERROR,
@@ -67,7 +69,7 @@ class Input(Script):
                 breach["_key"] = key
                 collection.data.insert(breach)
 
-    def update_pwned(self, ew, latestbreach):
+    def update_pwned(self, ew, latestbreach, proxysettings):
         ew.log(EventWriter.DEBUG, "Getting API Keys")
         # Check API Key and domains
         apikeys = [
@@ -86,6 +88,7 @@ class Input(Script):
                 s.headers.update(
                     {"hibp-api-key": apikey, "user-agent": "HIBP-Splunk-App"}
                 )
+                s.proxies.update(proxysettings)
 
                 # Get all domains
                 url1 = "https://haveibeenpwned.com/api/v3/subscribeddomains"
@@ -194,11 +197,42 @@ class Input(Script):
                             {"_key": domain, "Breaches": [latestbreach]}
                         )
 
+    def get_proxy_config(self, config):
+        if "proxyServer" not in config or "proxyPort" not in config:
+            return {}
+        proxyHost = config["proxyServer"]
+        proxyPort = config["proxyPort"]
+        proxyUser = config.get("proxyUser", "")
+        proxyPass = ""
+        if proxyUser:
+            for password in self.service.storage_passwords.list():
+                if password.content.realm == "hibp-proxy":
+                    proxyPass = password.content.clear_password
+            proxyauth = "http://{user}:{passw}@{proxy}:{port}".format(
+                user=quote_plus(proxyUser),
+                passw=quote_plus(proxyPass),
+                proxy=proxyHost,
+                port=proxyPort,
+            )
+            return {"http": proxyauth, "https": proxyauth}
+        else:
+            proxynoauth = "http://{proxy}:{port}".format(
+                proxy=proxyHost, port=proxyPort
+            )
+            return {"http": proxynoauth, "https": proxynoauth}
+
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
+        # ew.log(EventWriter.INFO, inputs.inputs['hibp_domainsearch://default'])
+        # check if proxy settings are enabled.
+        inputs_conf = inputs.inputs["hibp_domainsearch://default"]
+        proxySettings = self.get_proxy_config(inputs_conf)
+        # ew.log(EventWriter.ERROR,proxySettings)
 
         # Request latest breach
-        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach") as r:
+        with requests.get(
+            "https://haveibeenpwned.com/api/v3/latestbreach", proxies=proxySettings
+        ) as r:
             if not r.ok:
                 ew.log(
                     EventWriter.ERROR,
@@ -208,10 +242,10 @@ class Input(Script):
             latestbreach = r.json()["Name"]
 
         # Update Breaches Lookup
-        self.update_breaches(ew, latestbreach)
+        self.update_breaches(ew, latestbreach, proxySettings)
 
         # Update Pwned Events
-        self.update_pwned(ew, latestbreach)
+        self.update_pwned(ew, latestbreach, proxySettings)
 
         ew.close()
 
