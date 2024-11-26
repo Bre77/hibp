@@ -32,7 +32,6 @@ class index(PersistentServerConnectionApplication):
                     if(int(password.content.username) >= latestPass):
                         latestPass=int(password.content.username)
                         proxyPass=password.content.clear_password
-                        self.logger.info(proxyPass)
             proxyauth = 'http://{user}:{passw}@{proxy}:{port}'.format(user=quote_plus(proxyUser),
                                                                       passw=quote_plus(proxyPass),
                                                                       proxy=proxyHost,
