@@ -21,7 +21,7 @@ class Input(Script):
 
         return scheme
 
-    def update_breaches(self, ew, latestbreach,proxysettings):
+    def update_breaches(self, ew, latestbreach, proxysettings):
         # Check if latest recorded breach has changed
         collection = self.service.kvstore["hibp-breaches"]
         try:
@@ -44,7 +44,9 @@ class Input(Script):
         )
 
         # Get all breaches
-        with requests.get("https://haveibeenpwned.com/api/v3/breaches",proxies=proxysettings) as r:
+        with requests.get(
+            "https://haveibeenpwned.com/api/v3/breaches", proxies=proxysettings
+        ) as r:
             if not r.ok:
                 ew.log(
                     EventWriter.ERROR,
@@ -194,44 +196,43 @@ class Input(Script):
                         collection.data.insert(
                             {"_key": domain, "Breaches": [latestbreach]}
                         )
-                        
+
     def get_proxy_config(self, config):
-        proxyUser=""
-        proxyPass=""
-        proxyHost=config['proxyServer']
-        proxyPort=config['proxyPort']
-        latestPass=0
-        if(config['authenticationEnabled'] == "true"):
-            proxyUser=config['proxyUsername']
+        if "proxyServer" not in config or "proxyPort" not in config:
+            return {}
+        proxyHost = config["proxyServer"]
+        proxyPort = config["proxyPort"]
+        proxyUser = config.get("proxyUser", "")
+        proxyPass = ""
+        if proxyUser:
             for password in self.service.storage_passwords.list():
-                if(password.content.realm == "hibp-proxy"):
-                    if(int(password.content.username) >= latestPass):
-                        latestPass=int(password.content.username)
-                        proxyPass=password.content.clear_password
-            proxyauth = 'http://{user}:{passw}@{proxy}:{port}'.format(user=quote_plus(proxyUser),
-                                                                      passw=quote_plus(proxyPass),
-                                                                      proxy=proxyHost,
-                                                                      port=proxyPort)
-            return {'http': proxyauth, 'https': proxyauth }
+                if password.content.realm == "hibp-proxy":
+                    proxyPass = password.content.clear_password
+            proxyauth = "http://{user}:{passw}@{proxy}:{port}".format(
+                user=quote_plus(proxyUser),
+                passw=quote_plus(proxyPass),
+                proxy=proxyHost,
+                port=proxyPort,
+            )
+            return {"http": proxyauth, "https": proxyauth}
         else:
-            proxynoauth = 'http://{proxy}:{port}'.format(proxy=proxyHost,
-                                                         port=proxyPort)
-            return {'http': proxynoauth, 'https': proxynoauth }
-        
+            proxynoauth = "http://{proxy}:{port}".format(
+                proxy=proxyHost, port=proxyPort
+            )
+            return {"http": proxynoauth, "https": proxynoauth}
 
     def stream_events(self, inputs, ew):
         self.service.namespace["app"] = self.APP
         # ew.log(EventWriter.INFO, inputs.inputs['hibp_domainsearch://default'])
         # check if proxy settings are enabled.
-        inputs_conf = inputs.inputs['hibp_domainsearch://default']
-        proxySettings = {}
-        if(inputs_conf['proxyEnabled'] == "true"):
-            ew.log(EventWriter.INFO,"Proxy Enabled - using set values")
-            proxySettings = self.get_proxy_config(inputs_conf)
-        #ew.log(EventWriter.ERROR,proxySettings)
+        inputs_conf = inputs.inputs["hibp_domainsearch://default"]
+        proxySettings = self.get_proxy_config(inputs_conf)
+        # ew.log(EventWriter.ERROR,proxySettings)
 
         # Request latest breach
-        with requests.get("https://haveibeenpwned.com/api/v3/latestbreach", proxies=proxySettings) as r:
+        with requests.get(
+            "https://haveibeenpwned.com/api/v3/latestbreach", proxies=proxySettings
+        ) as r:
             if not r.ok:
                 ew.log(
                     EventWriter.ERROR,
@@ -241,10 +242,10 @@ class Input(Script):
             latestbreach = r.json()["Name"]
 
         # Update Breaches Lookup
-        self.update_breaches(ew, latestbreach,proxySettings)
+        self.update_breaches(ew, latestbreach, proxySettings)
 
         # Update Pwned Events
-        self.update_pwned(ew, latestbreach,proxySettings)
+        self.update_pwned(ew, latestbreach, proxySettings)
 
         ew.close()
 
