@@ -183,6 +183,7 @@ const AddProxy = () => {
     const [proxyPort, setProxyPort] = useState(0);
     const [proxyUsername, setProxyUsername] = useState('');
     const [proxyPassword, setProxyPassword] = useState('');
+    const [proxyEnabled, setProxyEnabled] = useState(false);
     const [authenticationEnabled, setAuthenticationEnabled] = useState(false);
 
     const fetchInit = getDefaultFetchInit();
@@ -209,13 +210,15 @@ const AddProxy = () => {
                     proxyServer,
                     proxyPort,
                     authenticationEnabled,
+                    proxyEnabled,
                     proxyUsername: authenticationEnabled ? proxyUsername : "",
                 })
             } else {
                 postBody = makeBody({
                     proxyServer,
                     proxyPort,
-                    authenticationEnabled
+                    authenticationEnabled,
+                    proxyEnabled
                 })
             }
 
@@ -261,15 +264,31 @@ const AddProxy = () => {
         addProxySettings.reset();
     };
 
-    const handleAuthenticationChange = (event) => {
+    const handleAuthenticationChange = () => {
         setAuthenticationEnabled(prevState => !prevState);
-        console.log('Authentication Enabled:', !authenticationEnabled);
+        addProxySettings.reset();
+    };
+
+    const handleProxyToggleChange = () => {
+        setProxyEnabled(prevState => !prevState);
+        fetch(`${splunkdPath}/servicesNS/nobody/hibp/configs/conf-inputs/hibp_domainsearch%3A%252F%252Fdefault?output_mode=json`, fetchInit).then(
+            (res) =>
+                console.log(res.json())
+        )
         addProxySettings.reset();
     };
 
     return (
         <>
-<ControlGroup labelWidth={WIDTH} label="Proxy Hostname" error={addProxySettings.error}>
+    <ControlGroup labelWidth={WIDTH} label="Enable Proxy">
+    <Switch 
+        selected={proxyEnabled}
+        onClick={handleProxyToggleChange}
+        data-test="switch"
+        appearance="toggle"
+    />
+    </ControlGroup>
+    <ControlGroup labelWidth={WIDTH} label="Proxy Hostname" error={addProxySettings.error}>
     <Text 
         value={proxyServer} 
         onChange={(e) => handleProxyChange(e, { name: "proxyServer", value: e.target.value })} 
@@ -279,7 +298,6 @@ const AddProxy = () => {
         value={proxyPort}
         onChange={(e) => handleProxyChange(e, { name: "proxyPort", value: e.target.value })} 
         type="number"
-        placeholder = "8080"
     />
     </ControlGroup>
     <ControlGroup labelWidth={WIDTH} label="Enable Authentication">
