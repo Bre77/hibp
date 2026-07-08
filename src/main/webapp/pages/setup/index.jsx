@@ -25,7 +25,7 @@ const makeBody = (data) => {
 
 const MutateButton = ({ mutation, label, disabled = false }) => (
     <Button
-        appearance={{ idle: "default", loading: "pill", success: "primary", error: "destructive" }[mutation.status]}
+        appearance={{ idle: "default", loading: "subtle", success: "primary", error: "destructive" }[mutation.status]}
         onClick={mutation.mutate}
         disabled={mutation.isLoading || disabled}
         label={{ idle: label, loading: "Running", success: "Success", error: "Failed" }[mutation.status]}
@@ -86,7 +86,7 @@ const AddEntry = () => {
     };
 
     return (
-        <ControlGroup labelWidth={WIDTH} label="Add API Key" error={addApiKey.error}>
+        <ControlGroup labelPosition="left" labelWidth={WIDTH} label="Add API Key" error={addApiKey.error}>
             <Text value={apiKey} onChange={handleApiKey} passwordVisibilityToggle error={apiKey.length > 0 && apiKey.length !== 32} />
             <MutateButton mutation={addApiKey} label="Add" disabled={apiKey.length !== 32} />
         </ControlGroup>
@@ -121,7 +121,7 @@ const ApiCard = ({ name, apikey }) => {
                         to generate a new API key.
                     </P>
                 </Card.Body>
-                <Card.Footer showBorder={false}>
+                <Card.Footer>
                     <MutateButton mutation={removeApiKey} label="Remove" />
                 </Card.Footer>
             </>
@@ -138,7 +138,7 @@ const ApiCard = ({ name, apikey }) => {
                         frequently. Try again in 10 minutes.
                     </P>
                 </Card.Body>
-                <Card.Footer showBorder={false}>
+                <Card.Footer>
                     <MutateButton mutation={removeApiKey} label="Remove" />
                 </Card.Footer>
             </>
@@ -226,7 +226,7 @@ const Input = () => {
             </Link>
         </MessageBar>
     ) : (
-        <ControlGroup labelWidth={WIDTH} label="Splunk Index">
+        <ControlGroup labelPosition="left" labelWidth={WIDTH} label="Splunk Index">
             <Text value={local} onChange={handleLocal} placeholder="Disabled" disabled={remote.isLoading} />
             <MutateButton
                 mutation={updateRemote}
@@ -277,7 +277,7 @@ const Reset = () => {
             Clear checkpoints
         </Button>,
         <Button
-            appearance={{ idle: "destructive", loading: "pill", success: "primary", error: "default" }[resetCheckpoints.status]}
+            appearance={{ idle: "destructive", loading: "subtle", success: "primary", error: "default" }[resetCheckpoints.status]}
             onClick={resetCheckpoints.mutate}
             disabled={resetCheckpoints.isLoading || resetCheckpoints.isSuccess}
             label={{ idle: "Are you sure?", loading: "Resetting", success: "Checkpoints cleared", error: "Failed" }[resetCheckpoints.status]}
