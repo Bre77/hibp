@@ -1,0 +1,25 @@
+# CI gate: pnpm build (.build.sh) + package + local AppInspect on every push/PR.
+#
+# Credential-free by design - no Splunkbase secrets. Publishing to Splunkbase is a
+# separate, human-triggered step, never run in CI.
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: Bre77/splunk_nats/.github/workflows/_reusable-build-appinspect.yml@main
+    with:
+      app_dir: "."
+      use_ucc_gen: false
+      build_command: "./.build.sh"
+      package_glob: "*.spl"
+      node_version: "20"
+      splunk_python_version: "3.9"
+      fail_on: "errors"
